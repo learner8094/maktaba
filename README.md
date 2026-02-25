@@ -56,7 +56,7 @@ maktaba/
 │   ├── library_view.py
 │   ├── reader_view.py
 │   ├── search_view.py
-│   └── ai_view.py
+│   └── semantic_view.py
 └── books/
     ├── quran.xhtml
     └── [القسم]/[عنوان_الكتاب]/

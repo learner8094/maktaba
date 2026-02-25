@@ -1,4 +1,4 @@
-# views/ai_view.py
+# views/semantic_view.py
 import os
 import gi
 gi.require_version("Gtk", "4.0")
@@ -12,7 +12,7 @@ from config import BOOKS_DIR
 from services.search import recoll_search
 from services.semantic import SemanticIndex, EmbeddingBackend, SemanticResult
 
-class AIView(Gtk.Box):
+class SemanticView(Gtk.Box):
     """لسان البحث الدلالي (Semantic Search)"""
     def __init__(self, open_cb):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=10)
