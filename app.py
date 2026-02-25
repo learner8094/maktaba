@@ -76,6 +76,10 @@ class MainApp(Gtk.Application):
         win.set_title("مكتبة - الباحث في المكتبة الرقمية")
         win.set_default_size(1500, 900)
 
+        key_ctrl = Gtk.EventControllerKey()
+        key_ctrl.connect("key-pressed", self.on_global_key_pressed)
+        win.add_controller(key_ctrl)
+
         header = Gtk.HeaderBar()
         win.set_titlebar(header)
 
@@ -125,6 +129,27 @@ class MainApp(Gtk.Application):
         self.notebook.append_page(self.ai, Gtk.Label(label="🧠 البحث الدلالي"))
 
         win.present()
+
+    def on_global_key_pressed(self, controller, keyval, keycode, state):
+        if keyval not in (Gdk.KEY_F5, Gdk.KEY_F6):
+            return False
+
+        current_tab = self.notebook.get_current_page()
+        is_next = keyval == Gdk.KEY_F5
+
+        if current_tab == 0 and self.quran:
+            self.quran.next_pg() if is_next else self.quran.prev_pg()
+            return True
+
+        if current_tab == 1 and self.reader:
+            self.reader.next_page() if is_next else self.reader.prev_page()
+            return True
+
+        if current_tab == 2 and self.search:
+            self.search.select_adjacent_result(1 if is_next else -1)
+            return True
+
+        return False
 
     def save_position(self, book: Book, page: int):
         if not book:

@@ -161,3 +161,24 @@ class SearchView(Gtk.Box):
             self.open_cb(book, part_idx, page_idx, words)
         except Exception as e:
             print(f"فشل في فتح النتيجة: {e}")
+
+    def select_adjacent_result(self, step: int):
+        if not step or len(self.store) == 0:
+            return
+
+        selection = self.tree.get_selection()
+        model, current_iter = selection.get_selected()
+
+        if current_iter:
+            path = model.get_path(current_iter)
+            current_index = path.get_indices()[0]
+        else:
+            current_index = -1 if step > 0 else len(self.store)
+
+        next_index = max(0, min(len(self.store) - 1, current_index + step))
+        path = Gtk.TreePath.new_from_indices([next_index])
+
+        selection.select_path(path)
+        self.tree.set_cursor(path, None, False)
+        self.tree.scroll_to_cell(path, None, False, 0.0, 0.0)
+
