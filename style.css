@@ -1,0 +1,78 @@
+/* style.css - ملف التنسيقات الرئيسي */
+
+/* الإعدادات العامة للنوافذ */
+window {
+    font-family: 'Amiri', 'Scheherazade New', serif;
+}
+
+/* تنسيقات العناوين */
+.title-4 {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: @headerbar_fg_color;
+}
+
+/* ------------------------------------------------
+   لسان القراءة (Reader View)
+------------------------------------------------ */
+
+/* القائمة الجانبية (الفهرس) */
+.sidebar {
+    background-color: alpha(@window_fg_color, 0.02);
+    border-left: 1px solid alpha(@borders, 0.5);
+}
+
+/* حاوية النص في القارئ */
+.reader-text {
+    padding: 25px 40px;
+    line-height: 1.2;
+}
+
+/* تحديد النص المظلل (Highlight) */
+textview text selection {
+    background-color: alpha(@accent_color, 0.3);
+    color: @accent_fg_color;
+}
+
+/* ------------------------------------------------
+   لسان المكتبة (Library View)
+------------------------------------------------ */
+
+/* شريط الإحصائيات السفلي */
+.stats-bar {
+    background-color: alpha(@window_fg_color, 0.05);
+    border-top: 1px solid alpha(@borders, 0.5);
+    padding: 5px;
+    font-size: 0.9rem;
+}
+
+/* ------------------------------------------------
+   لسان القرآن (Quran View)
+------------------------------------------------ */
+
+.quran-text {
+    font-family: 'Amiri';
+    line-height: 1.3;
+    padding: 20px;
+}
+
+/* العناوين داخل القرآن */
+.quran-sura-title {
+    font-weight: bold;
+    color: @accent_color;
+}
+
+
+/* ------------------------------------------------
+   عناصر عامة
+------------------------------------------------ */
+.toolbar {
+    padding: 6px 10px;
+    background-color: alpha(@window_fg_color, 0.03);
+    border: 1px solid alpha(@borders, 0.35);
+    border-radius: 10px;
+}
+
+.dim-label {
+    opacity: 0.75;
+}
