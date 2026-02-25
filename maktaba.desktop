@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Maktaba
+Name[ar]=مكتبة
+Comment=Arabic desktop reader and search app
+Comment[ar]=قارئ وباحث الكتب العربية
+Exec=maktaba
+Icon=icon
+Terminal=false
+Categories=Office;Education;Utility;
+StartupNotify=true

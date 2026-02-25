@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Maktaba
+Exec=maktaba
+Icon=io.github.maktaba
+Type=Application
+Categories=Office;Utility;
+StartupWMClass=io.github.maktaba
