@@ -10,7 +10,7 @@ from views.library_view import LibraryView
 from views.reader_view import ReaderView
 from views.search_view import SearchView
 from views.quran_view import QuranView
-from views.ai_view import AIView  # صار يمثل البحث الدلالي
+from views.semantic_view import SemanticView
 
 from book import Book
 from config import BOOKS_DIR, STYLE_FILE, load_config, save_config
@@ -125,8 +125,8 @@ class MainApp(Gtk.Application):
         self.notebook.append_page(self.search, Gtk.Label(label="🔍 البحث"))
 
         # 4. لسان البحث الدلالي (بديل الذكاء الاصطناعي الثقيل)
-        self.ai = AIView(self.open_from_semantic)
-        self.notebook.append_page(self.ai, Gtk.Label(label="🧠 البحث الدلالي"))
+        self.semantic = SemanticView(self.open_from_semantic)
+        self.notebook.append_page(self.semantic, Gtk.Label(label="🧠 البحث الدلالي"))
 
         win.present()
 
