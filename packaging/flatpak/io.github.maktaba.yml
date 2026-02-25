@@ -1,0 +1,31 @@
+app-id: io.github.maktaba
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
+command: maktaba
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --filesystem=xdg-documents:ro
+
+modules:
+  - name: maktaba
+    buildsystem: simple
+    build-commands:
+      - install -d /app/bin
+      - printf '%s\n' '#!/usr/bin/env sh' 'exec python3 /app/share/maktaba/main.py "$@"' > /app/bin/maktaba
+      - chmod +x /app/bin/maktaba
+      - install -D app.py /app/share/maktaba/app.py
+      - install -D config.py /app/share/maktaba/config.py
+      - install -D book.py /app/share/maktaba/book.py
+      - install -D searcher.py /app/share/maktaba/searcher.py
+      - install -D main.py /app/share/maktaba/main.py
+      - install -D style.css /app/share/maktaba/style.css
+      - cp -r views services books /app/share/maktaba/
+      - install -D packaging/flatpak/io.github.maktaba.desktop /app/share/applications/io.github.maktaba.desktop
+      - install -D packaging/flatpak/io.github.maktaba.svg /app/share/icons/hicolor/scalable/apps/io.github.maktaba.svg
+    sources:
+      - type: dir
+        path: ..

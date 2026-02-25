@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=مكتبة
+Name[en]=Maktaba
+Comment=قارئ وباحث للكتب العربية والقرآن الكريم
+Comment[en]=Arabic books and Quran reader with search
+Exec=maktaba
+Icon=io.github.maktaba
+Terminal=false
+Type=Application
+Categories=Education;Office;Viewer;
+Keywords=books;arabic;quran;reader;search;
+StartupNotify=true
