@@ -242,10 +242,29 @@ class QuranView(Gtk.Box):
         self.book.goto_page(0, self.book.current_part.page_for_line(line_idx))
         self.render()
 
-    def next_pg(self): self.book.next_page(); self.render()
-    def prev_pg(self): self.book.prev_page(); self.render()
-    def goto_first(self): self.book.goto_page(0,0); self.render()
-    def goto_last(self): self.book.goto_page(0, len(self.book.current_part.pages)-1); self.render()
+    def next_pg(self):
+        if not self.book:
+            return
+        self.book.next_page()
+        self.render()
+
+    def prev_pg(self):
+        if not self.book:
+            return
+        self.book.prev_page()
+        self.render()
+
+    def goto_first(self):
+        if not self.book:
+            return
+        self.book.goto_page(0, 0)
+        self.render()
+
+    def goto_last(self):
+        if not self.book:
+            return
+        self.book.goto_page(0, len(self.book.current_part.pages) - 1)
+        self.render()
     
     def on_surah_activated(self, t, p, c):
         line = self.surah_store[p][1]
