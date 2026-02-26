@@ -46,6 +46,32 @@ class LibraryUpdater:
             return [data]
         return data
 
+    def _resolve_root_items(self) -> List[Dict]:
+        """يحاول الوصول إلى books مع مراعاة اختلاف اسم الفرع (main/master)."""
+        tried_branches = []
+        branch_candidates = [self.branch]
+        if self.branch != "main":
+            branch_candidates.append("main")
+        if self.branch != "master":
+            branch_candidates.append("master")
+
+        last_error: Optional[Exception] = None
+        for candidate in branch_candidates:
+            self.branch = candidate
+            tried_branches.append(candidate)
+            try:
+                return self._list_dir("books")
+            except HTTPError as e:
+                if e.code != 404:
+                    raise
+                last_error = e
+
+        raise RuntimeError(
+            "تعذر العثور على مجلد books في GitHub. "
+            f"تحقق من MAKTABA_GITHUB_REPO='{self.repo}' و"
+            f" MAKTABA_GITHUB_BRANCH (جرّبنا: {', '.join(tried_branches)})."
+        ) from last_error
+
     def update_new_books(self) -> LibraryUpdateResult:
         added_books = 0
         skipped_books = 0
@@ -53,7 +79,7 @@ class LibraryUpdater:
 
         os.makedirs(BOOKS_DIR, exist_ok=True)
 
-        root_items = self._list_dir("books")
+        root_items = self._resolve_root_items()
         for section in root_items:
             if section.get("type") != "dir":
                 continue
