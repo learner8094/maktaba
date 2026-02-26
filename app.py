@@ -128,7 +128,7 @@ class MainApp(Gtk.Application):
             show_library = not self.lib_revealer.get_reveal_child()
             self.lib_revealer.set_reveal_child(show_library)
             if show_library:
-                self.reader.sidebar_revealer.set_reveal_child(False)
+                self.reader.hide_sidebar_panel()
 
         self.reader.connect_library_toggle(toggle_library_sidebar)
         self.reader.connect_sidebar_panel_requested(lambda _name: self.lib_revealer.set_reveal_child(False))

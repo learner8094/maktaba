@@ -27,7 +27,7 @@ class ReaderView(Gtk.Box):
         # 1. القائمة الجانبية الموحدة (الفهرس/البحث داخل الكتاب)
         self.sidebar_revealer = Gtk.Revealer()
         self.sidebar_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_LEFT)
-        self.sidebar_revealer.set_reveal_child(True)
+        self.sidebar_revealer.set_reveal_child(False)
         self.append(self.sidebar_revealer)
 
         self.sidebar_stack = Gtk.Stack()
@@ -92,15 +92,27 @@ class ReaderView(Gtk.Box):
         search_bar.append(btn_book_search)
         sidebar_search_box.append(search_bar)
 
-        self.book_search_store = Gtk.ListStore(str, int, int, str)
+        self.book_search_store = Gtk.ListStore(int, str, str, int, int, str)
         self.book_search_view = Gtk.TreeView(model=self.book_search_store)
-        self.book_search_view.set_headers_visible(False)
+        self.book_search_view.set_headers_visible(True)
+
+        index_renderer = Gtk.CellRendererText()
+        index_renderer.set_property("xalign", 0.5)
+        index_col = Gtk.TreeViewColumn("#", index_renderer, text=0)
+        index_col.set_fixed_width(40)
+        self.book_search_view.append_column(index_col)
+
+        location_renderer = Gtk.CellRendererText()
+        location_renderer.set_property("xalign", 0.5)
+        location_col = Gtk.TreeViewColumn("الموضع", location_renderer, text=1)
+        location_col.set_fixed_width(90)
+        self.book_search_view.append_column(location_col)
 
         result_renderer = Gtk.CellRendererText()
         result_renderer.set_property("wrap-width", 250)
         result_renderer.set_property("wrap-mode", Pango.WrapMode.WORD_CHAR)
         result_renderer.set_property("ypad", 6)
-        result_col = Gtk.TreeViewColumn("النتيجة", result_renderer, text=0)
+        result_col = Gtk.TreeViewColumn("مقتطف", result_renderer, text=2)
         result_col.set_expand(True)
         self.book_search_view.append_column(result_col)
         self.book_search_view.connect("row-activated", self.on_book_search_result_activated)
@@ -114,7 +126,9 @@ class ReaderView(Gtk.Box):
         self.sidebar_stack.add_titled(sidebar_toc_box, "toc", "فهرس الكتاب")
         self.sidebar_stack.add_titled(sidebar_search_box, "search", "بحث داخل الكتاب")
         self.sidebar_revealer.set_child(self.sidebar_stack)
-        self.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
+        self.sidebar_separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        self.sidebar_separator.set_visible(False)
+        self.append(self.sidebar_separator)
 
         # 2. منطقة القراءة الرئيسية
         main_area = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -375,16 +389,22 @@ class ReaderView(Gtk.Box):
             self.save_cb(self.book, self.book.current_page_index)
 
 
+    def hide_sidebar_panel(self):
+        self.sidebar_revealer.set_reveal_child(False)
+        self.sidebar_separator.set_visible(False)
+
     def show_sidebar_panel(self, panel_name: str):
         current_visible = self.sidebar_revealer.get_reveal_child()
         current_panel = self.sidebar_stack.get_visible_child_name()
 
         if current_visible and current_panel == panel_name:
             self.sidebar_revealer.set_reveal_child(False)
+            self.sidebar_separator.set_visible(False)
             return
 
         self.sidebar_stack.set_visible_child_name(panel_name)
         self.sidebar_revealer.set_reveal_child(True)
+        self.sidebar_separator.set_visible(True)
         if self._sidebar_panel_requested_cb:
             self._sidebar_panel_requested_cb(panel_name)
 
@@ -402,6 +422,7 @@ class ReaderView(Gtk.Box):
             return
 
         max_results = 300
+        result_no = 0
         for p_idx, part in enumerate(self.book.parts):
             for line_idx, line in enumerate(part.lines):
                 line_lower = line.lower()
@@ -410,8 +431,9 @@ class ReaderView(Gtk.Box):
                     snippet = line.strip()
                     if len(snippet) > 120:
                         snippet = snippet[:117] + "..."
-                    display = f"ج{p_idx + 1} / ص{page_idx + 1}: {snippet}"
-                    self.book_search_store.append([display, p_idx, page_idx, line])
+                    result_no += 1
+                    location = f"ج{p_idx + 1} ص{page_idx + 1}"
+                    self.book_search_store.append([result_no, location, snippet, p_idx, page_idx, line])
                     if len(self.book_search_store) >= max_results:
                         return
 
@@ -421,8 +443,8 @@ class ReaderView(Gtk.Box):
         if not iter_ or not self.book:
             return
 
-        part_idx = model.get_value(iter_, 1)
-        page_idx = model.get_value(iter_, 2)
+        part_idx = model.get_value(iter_, 3)
+        page_idx = model.get_value(iter_, 4)
         words = self.book_search_entry.get_text().strip().split()
         self.book.goto_page(part_idx, page_idx)
         self.update_ui(highlight_words=words)
