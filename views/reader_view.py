@@ -17,26 +17,31 @@ class ReaderView(Gtk.Box):
         self.save_cb = save_cb
         self.book: Optional[Book] = None
         self.font_size = CONFIG.get("font_size", 22)
+        self._pending_highlight_words: List[str] = []
+        self._sidebar_panel_requested_cb: Optional[Callable[[str], None]] = None
         
         # إعدادات التمدد
         self.set_hexpand(True)
         self.set_vexpand(True)
         
-        # 1. القائمة الجانبية (الفهرس)
+        # 1. القائمة الجانبية الموحدة (الفهرس/البحث داخل الكتاب)
         self.sidebar_revealer = Gtk.Revealer()
         self.sidebar_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_LEFT)
-        self.sidebar_revealer.set_reveal_child(True) 
+        self.sidebar_revealer.set_reveal_child(True)
         self.append(self.sidebar_revealer)
 
-        sidebar_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        sidebar_box.set_size_request(280, -1)
-        sidebar_box.add_css_class("sidebar") # الستايل الآن في style.css
-        
+        self.sidebar_stack = Gtk.Stack()
+        self.sidebar_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
+
+        sidebar_toc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        sidebar_toc_box.set_size_request(280, -1)
+        sidebar_toc_box.add_css_class("sidebar")
+
         lbl_toc = Gtk.Label(label="فهرس الكتاب")
         lbl_toc.set_margin_top(15)
         lbl_toc.set_margin_bottom(10)
         lbl_toc.add_css_class("title-4")
-        sidebar_box.append(lbl_toc)
+        sidebar_toc_box.append(lbl_toc)
 
         self.section_store = Gtk.TreeStore(str, int, int, int)
         self.section_view = Gtk.TreeView(model=self.section_store)
@@ -60,9 +65,55 @@ class ReaderView(Gtk.Box):
         sec_scroll.set_child(self.section_view)
         sec_scroll.set_vexpand(True)
         sec_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        sidebar_box.append(sec_scroll)
-        
-        self.sidebar_revealer.set_child(sidebar_box)
+        sidebar_toc_box.append(sec_scroll)
+
+        sidebar_search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        sidebar_search_box.set_size_request(280, -1)
+        sidebar_search_box.add_css_class("sidebar")
+
+        lbl_search = Gtk.Label(label="بحث داخل الكتاب")
+        lbl_search.set_margin_top(15)
+        lbl_search.set_margin_bottom(10)
+        lbl_search.add_css_class("title-4")
+        sidebar_search_box.append(lbl_search)
+
+        search_bar = Gtk.Box(spacing=6)
+        search_bar.set_margin_start(10)
+        search_bar.set_margin_end(10)
+        search_bar.set_margin_bottom(10)
+        self.book_search_entry = Gtk.SearchEntry()
+        self.book_search_entry.set_placeholder_text("ابحث داخل الكتاب الحالي...")
+        self.book_search_entry.set_hexpand(True)
+        self.book_search_entry.connect("activate", self.perform_book_search)
+        search_bar.append(self.book_search_entry)
+
+        btn_book_search = Gtk.Button.new_from_icon_name("system-search-symbolic")
+        btn_book_search.connect("clicked", self.perform_book_search)
+        search_bar.append(btn_book_search)
+        sidebar_search_box.append(search_bar)
+
+        self.book_search_store = Gtk.ListStore(str, int, int, str)
+        self.book_search_view = Gtk.TreeView(model=self.book_search_store)
+        self.book_search_view.set_headers_visible(False)
+
+        result_renderer = Gtk.CellRendererText()
+        result_renderer.set_property("wrap-width", 250)
+        result_renderer.set_property("wrap-mode", Pango.WrapMode.WORD_CHAR)
+        result_renderer.set_property("ypad", 6)
+        result_col = Gtk.TreeViewColumn("النتيجة", result_renderer, text=0)
+        result_col.set_expand(True)
+        self.book_search_view.append_column(result_col)
+        self.book_search_view.connect("row-activated", self.on_book_search_result_activated)
+
+        result_scroll = Gtk.ScrolledWindow()
+        result_scroll.set_child(self.book_search_view)
+        result_scroll.set_vexpand(True)
+        result_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sidebar_search_box.append(result_scroll)
+
+        self.sidebar_stack.add_titled(sidebar_toc_box, "toc", "فهرس الكتاب")
+        self.sidebar_stack.add_titled(sidebar_search_box, "search", "بحث داخل الكتاب")
+        self.sidebar_revealer.set_child(self.sidebar_stack)
         self.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
 
         # 2. منطقة القراءة الرئيسية
@@ -86,11 +137,15 @@ class ReaderView(Gtk.Box):
         
         top_bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
 
-        btn_sidebar = Gtk.Button.new_from_icon_name("view-list-symbolic")
-        btn_sidebar.set_tooltip_text("إظهار/إخفاء الفهرس")
-        btn_sidebar.connect("clicked", lambda x: self.sidebar_revealer.set_reveal_child(
-            not self.sidebar_revealer.get_reveal_child()))
-        top_bar.append(btn_sidebar)
+        self.btn_sidebar_toc = Gtk.Button.new_from_icon_name("view-list-symbolic")
+        self.btn_sidebar_toc.set_tooltip_text("فهرس الكتاب")
+        self.btn_sidebar_toc.connect("clicked", lambda x: self.show_sidebar_panel("toc"))
+        top_bar.append(self.btn_sidebar_toc)
+
+        self.btn_sidebar_search = Gtk.Button.new_from_icon_name("system-search-symbolic")
+        self.btn_sidebar_search.set_tooltip_text("بحث داخل الكتاب")
+        self.btn_sidebar_search.connect("clicked", lambda x: self.show_sidebar_panel("search"))
+        top_bar.append(self.btn_sidebar_search)
 
         self.lbl_book_title = Gtk.Label(label="")
         self.lbl_book_title.set_hexpand(True) 
@@ -231,6 +286,9 @@ class ReaderView(Gtk.Box):
     def connect_library_toggle(self, callback: Callable):
         self.btn_lib_toggle.connect("clicked", lambda x: callback())
 
+    def connect_sidebar_panel_requested(self, callback: Callable[[str], None]):
+        self._sidebar_panel_requested_cb = callback
+
     def change_font(self, d: int):
         self.font_size = max(14, min(60, self.font_size + d))
         CONFIG["font_size"] = self.font_size
@@ -240,7 +298,11 @@ class ReaderView(Gtk.Box):
     def load_book(self, book: Book, part_index: int=0, page_index: int=0, 
                   highlight_words: Optional[List[str]]=None, line_to_scroll: Optional[int]=None):
         self.book = book
-        self.lbl_book_title.set_label(book.title)
+        display_title = book.title
+        if book.author:
+            display_title = f"{book.title} - {book.author}"
+        self.lbl_book_title.set_label(display_title)
+        self._pending_highlight_words = list(highlight_words or [])
 
         self.section_store.clear()
         parents = {}
@@ -281,16 +343,26 @@ class ReaderView(Gtk.Box):
         if line_to_scroll is not None:
             GLib.timeout_add(50, self._scroll_to_line, line_to_scroll)
 
-        if highlight_words:
+        active_highlight_words = highlight_words if highlight_words is not None else self._pending_highlight_words
+        if active_highlight_words:
+            self._pending_highlight_words = list(active_highlight_words)
+            first_match = None
+            last_iter = self.buffer.get_end_iter()
             start = self.buffer.get_start_iter()
-            for word in highlight_words:
+            for word in active_highlight_words:
+                search_start = start.copy()
                 while True:
-                    match = start.forward_search(word, Gtk.TextSearchFlags.CASE_INSENSITIVE, self.buffer.get_end_iter())
-                    if not match: break
+                    match = search_start.forward_search(word, Gtk.TextSearchFlags.CASE_INSENSITIVE, last_iter)
+                    if not match:
+                        break
                     s, e = match
+                    if first_match is None:
+                        first_match = s.copy()
                     self.buffer.apply_tag(self.highlight_tag, s, e)
-                    start = e
-        
+                    search_start = e
+            if first_match is not None:
+                GLib.timeout_add(20, self._scroll_to_iter, first_match)
+
         current_part_len = len(self.book.current_part.pages)
         current = self.book.current_page_index + 1
         self.page_scale.freeze_notify()
@@ -301,6 +373,64 @@ class ReaderView(Gtk.Box):
         
         if self.save_cb:
             self.save_cb(self.book, self.book.current_page_index)
+
+
+    def show_sidebar_panel(self, panel_name: str):
+        current_visible = self.sidebar_revealer.get_reveal_child()
+        current_panel = self.sidebar_stack.get_visible_child_name()
+
+        if current_visible and current_panel == panel_name:
+            self.sidebar_revealer.set_reveal_child(False)
+            return
+
+        self.sidebar_stack.set_visible_child_name(panel_name)
+        self.sidebar_revealer.set_reveal_child(True)
+        if self._sidebar_panel_requested_cb:
+            self._sidebar_panel_requested_cb(panel_name)
+
+    def perform_book_search(self, *_args):
+        self.book_search_store.clear()
+        if not self.book:
+            return
+
+        query = self.book_search_entry.get_text().strip()
+        if not query:
+            return
+
+        terms = [w.lower() for w in query.split() if w.strip()]
+        if not terms:
+            return
+
+        max_results = 300
+        for p_idx, part in enumerate(self.book.parts):
+            for line_idx, line in enumerate(part.lines):
+                line_lower = line.lower()
+                if all(term in line_lower for term in terms):
+                    page_idx = part.page_for_line(line_idx)
+                    snippet = line.strip()
+                    if len(snippet) > 120:
+                        snippet = snippet[:117] + "..."
+                    display = f"ج{p_idx + 1} / ص{page_idx + 1}: {snippet}"
+                    self.book_search_store.append([display, p_idx, page_idx, line])
+                    if len(self.book_search_store) >= max_results:
+                        return
+
+    def on_book_search_result_activated(self, tree, path, _col):
+        model = tree.get_model()
+        iter_ = model.get_iter(path)
+        if not iter_ or not self.book:
+            return
+
+        part_idx = model.get_value(iter_, 1)
+        page_idx = model.get_value(iter_, 2)
+        words = self.book_search_entry.get_text().strip().split()
+        self.book.goto_page(part_idx, page_idx)
+        self.update_ui(highlight_words=words)
+
+    def _scroll_to_iter(self, iter_at_match):
+        self.buffer.place_cursor(iter_at_match)
+        self.text.scroll_to_iter(iter_at_match, 0.1, True, 0.5, 0.3)
+        return False
 
     def _scroll_to_line(self, line_to_scroll: int):
         if not self.book: return False
