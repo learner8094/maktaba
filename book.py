@@ -21,13 +21,6 @@ class HTMLExtractor(HTMLParser):
         self._in_page_number = False
         self._in_li = False 
 
-    @staticmethod
-    def _chunk_text(text, max_words=12):
-        words = text.split()
-        if len(words) <= max_words:
-            return [text]
-        return [" ".join(words[i:i + max_words]) for i in range(0, len(words), max_words)]
-
     def handle_starttag(self, tag, attrs):
         attrs_dict = dict(attrs)
 
@@ -76,7 +69,8 @@ class HTMLExtractor(HTMLParser):
             if self._in_li:
                 t = f"• {t}"
 
-            chunks = [t] if self._in_h or self._in_title_span else self._chunk_text(t)
+            # الحفاظ على النص كما هو داخل الفقرة وعدم تجزئته إلى جمل قصيرة.
+            chunks = [t]
 
             if self._in_h:
                 self.sections.append((t, self._line, self._h_level))
