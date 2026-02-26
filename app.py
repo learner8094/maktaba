@@ -85,7 +85,8 @@ class MainApp(Gtk.Application):
 
         win = Gtk.ApplicationWindow(application=self)
         win.set_title("مكتبة - الباحث في المكتبة الرقمية")
-        win.set_default_size(1500, 900)
+        # حجم افتراضي مناسب لمعظم الشاشات المتوسطة دون تجاوز الارتفاع
+        win.set_default_size(1200, 760)
 
         key_ctrl = Gtk.EventControllerKey()
         key_ctrl.connect("key-pressed", self.on_global_key_pressed)
