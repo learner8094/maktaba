@@ -117,10 +117,7 @@ class LibraryView(Gtk.Box):
             sec_display = f"{section_name} ({len(books)})"
             sec_iter = self.store.append(None, [sec_display, None])
             for info in books:
-                display = info.title
-                if info.author:
-                    display = f"{info.title} - {info.author}"
-                self.store.append(sec_iter, [display, info.dir_path])
+                self.store.append(sec_iter, [info.title, info.dir_path])
 
     def _populate_by_author(self, libs):
         author_map = {}

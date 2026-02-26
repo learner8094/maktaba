@@ -53,7 +53,8 @@ class ReaderView(Gtk.Box):
         col.set_resizable(True)
         self.section_view.append_column(col)
         
-        self.section_view.get_selection().connect("changed", self.on_section_selected)
+        self.section_selection = self.section_view.get_selection()
+        self.section_selection_handler = self.section_selection.connect("changed", self.on_section_selected)
         
         sec_scroll = Gtk.ScrolledWindow()
         sec_scroll.set_child(self.section_view)
@@ -239,23 +240,37 @@ class ReaderView(Gtk.Box):
     def load_book(self, book: Book, part_index: int=0, page_index: int=0, 
                   highlight_words: Optional[List[str]]=None, line_to_scroll: Optional[int]=None):
         self.book = book
-        display_title = book.title
-        if book.author:
-            display_title = f"{book.title} - {book.author}"
-        self.lbl_book_title.set_label(display_title)
-        
+        self.lbl_book_title.set_label(book.title)
+
         self.section_store.clear()
-        parents = {} 
+        parents = {}
+        best_iter = None
+        best_line = -1
+        target_line = line_to_scroll if line_to_scroll is not None else book.parts[part_index].get_start_line_for_page(page_index)
+
         for p_idx, part in enumerate(book.parts):
             for title, line, level in part.sections:
                 pg_idx = part.page_for_line(line)
                 parent_iter = parents.get(level - 1) if level > 1 else None
                 current_iter = self.section_store.append(parent_iter, [title, p_idx, pg_idx, line])
                 parents[level] = current_iter
-                for k in [k for k in parents if k > level]: del parents[k]
+                for k in [k for k in parents if k > level]:
+                    del parents[k]
+
+                if p_idx == part_index and line <= target_line and line >= best_line:
+                    best_line = line
+                    best_iter = current_iter
 
         self.book.goto_page(part_index, page_index)
         self.update_ui(highlight_words, line_to_scroll)
+
+        if best_iter:
+            self.section_selection.handler_block(self.section_selection_handler)
+            self.section_selection.select_iter(best_iter)
+            self.section_selection.handler_unblock(self.section_selection_handler)
+            path = self.section_store.get_path(best_iter)
+            if path:
+                self.section_view.scroll_to_cell(path, None, False, 0.0, 0.0)
 
     def update_ui(self, highlight_words: Optional[List[str]]=None, line_to_scroll: Optional[int]=None):
         if not self.book: return

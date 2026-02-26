@@ -158,7 +158,7 @@ class SearchView(Gtk.Box):
             part_idx = next(i for i, p in enumerate(book.parts) if p.path == filepath)
             page_idx = book.parts[part_idx].page_for_line(line_num - 1)
             words = self.entry.get_text().strip().split()
-            self.open_cb(book, part_idx, page_idx, words)
+            self.open_cb(book, part_idx, page_idx, words, line_num - 1)
         except Exception as e:
             print(f"فشل في فتح النتيجة: {e}")
 
