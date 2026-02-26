@@ -224,6 +224,7 @@ class Book:
         self.meta = {}
         self.author = ""
         self.title = ""
+        self.category = ""
         
         if os.path.isdir(path_or_dir):
             self.dir = path_or_dir
@@ -246,6 +247,10 @@ class Book:
         self.title = os.path.basename(self.dir).replace("_", " ")
         self.author = "" 
         
+        parent_dir = os.path.dirname(self.dir)
+        if os.path.normpath(parent_dir) != os.path.normpath(self.dir):
+            self.category = os.path.basename(parent_dir).replace("_", " ")
+
         if os.path.exists(meta_path):
             try:
                 with open(meta_path, "r", encoding="utf-8") as f:

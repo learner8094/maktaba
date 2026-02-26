@@ -183,13 +183,17 @@ class ReaderView(Gtk.Box):
 
     def show_book_info(self, *args):
         if not self.book or not self.book.meta:
+            category = self.book.category if self.book and self.book.category else "غير معروف"
             dlg = Gtk.MessageDialog(
                 transient_for=self.get_native(),
                 modal=True,
                 message_type=Gtk.MessageType.INFO,
                 buttons=Gtk.ButtonsType.OK,
                 text="معلومات الكتاب",
-                secondary_text=f"العنوان: {self.book.title if self.book else 'غير معروف'}"
+                secondary_text=(
+                    f"العنوان: {self.book.title if self.book else 'غير معروف'}\n"
+                    f"التصنيف: {category}"
+                )
             )
             dlg.connect("response", lambda d, r: d.destroy())
             dlg.present()
@@ -204,11 +208,11 @@ class ReaderView(Gtk.Box):
         else:
             auth_str = str(author_info)
 
+        category = self.book.category or "غير معروف"
         info_text = (
             f"📖 الكتاب: {m.get('title', self.book.title)}\n"
             f"👤 المؤلف: {auth_str}\n"
-            f"📁 التصنيف: {m.get('category', '')} - {m.get('sub_category', '')}\n"
-            f"🌐 اللغة: {m.get('language', 'ar')}\n"
+            f"📁 التصنيف: {category}\n"
             f"📜 الرخصة: {m.get('license', 'غير محددة')}\n"
             f"🔗 المصدر: {m.get('source', {}).get('name', 'الشاملة')}"
         )
