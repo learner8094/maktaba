@@ -187,9 +187,9 @@ class MainApp(Gtk.Application):
         except Exception as e:
             print(f"فشل في فتح الكتاب: {e}")
 
-    def open_from_search(self, book: Book, part_idx: int, page_idx: int, words: List[str]):
+    def open_from_search(self, book: Book, part_idx: int, page_idx: int, words: List[str], line_idx: Optional[int] = None):
         try:
-            self.reader.load_book(book, part_idx, page_idx, highlight_words=words)
+            self.reader.load_book(book, part_idx, page_idx, highlight_words=words, line_to_scroll=line_idx)
             self.notebook.set_current_page(1)
             self.lib_revealer.set_reveal_child(False)
             self.save_position(book, page_idx)
