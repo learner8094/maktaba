@@ -6,7 +6,7 @@ from typing import Optional, List, Callable
 import os
 
 from book import Book
-from config import load_config, save_config
+from config import load_config
 
 CONFIG = load_config()
 
@@ -161,30 +161,11 @@ class ReaderView(Gtk.Box):
         self.btn_sidebar_search.connect("clicked", lambda x: self.show_sidebar_panel("search"))
         top_bar.append(self.btn_sidebar_search)
 
-        box_sidebar_width = Gtk.Box()
-        box_sidebar_width.add_css_class("linked")
-        btn_sidebar_w_inc = Gtk.Button.new_from_icon_name("list-add-symbolic")
-        btn_sidebar_w_inc.set_tooltip_text("زيادة عرض الشريط الجانبي")
-        btn_sidebar_w_inc.connect("clicked", lambda x: self.change_sidebar_width(20))
-        btn_sidebar_w_dec = Gtk.Button.new_from_icon_name("list-remove-symbolic")
-        btn_sidebar_w_dec.set_tooltip_text("تقليل عرض الشريط الجانبي")
-        btn_sidebar_w_dec.connect("clicked", lambda x: self.change_sidebar_width(-20))
-        box_sidebar_width.append(btn_sidebar_w_inc)
-        box_sidebar_width.append(btn_sidebar_w_dec)
-        top_bar.append(box_sidebar_width)
-
         self.lbl_book_title = Gtk.Label(label="")
         self.lbl_book_title.set_hexpand(True) 
         self.lbl_book_title.add_css_class("title-4")
         self.lbl_book_title.set_ellipsize(Pango.EllipsizeMode.END)
         top_bar.append(self.lbl_book_title)
-
-        self.btn_info = Gtk.Button.new_from_icon_name("info-symbolic")
-        self.btn_info.set_tooltip_text("بطاقة الكتاب")
-        self.btn_info.connect("clicked", self.show_book_info)
-        top_bar.append(self.btn_info)
-
-        top_bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
 
         box_font = Gtk.Box()
         box_font.add_css_class("linked")
@@ -195,6 +176,11 @@ class ReaderView(Gtk.Box):
         box_font.append(btn_font_inc)
         box_font.append(btn_font_dec)
         top_bar.append(box_font)
+
+        self.btn_info = Gtk.Button.new_from_icon_name("info-symbolic")
+        self.btn_info.set_tooltip_text("بطاقة الكتاب")
+        self.btn_info.connect("clicked", self.show_book_info)
+        top_bar.append(self.btn_info)
 
         # وعاء النص
         self.text = Gtk.TextView(editable=False, wrap_mode=Gtk.WrapMode.WORD)
@@ -329,12 +315,6 @@ class ReaderView(Gtk.Box):
             panel = self.sidebar_stack.get_child_by_name(child)
             if panel:
                 panel.set_size_request(width, -1)
-
-    def change_sidebar_width(self, delta: int):
-        self.sidebar_width = max(220, min(520, self.sidebar_width + delta))
-        CONFIG["reader_sidebar_width"] = self.sidebar_width
-        save_config(CONFIG)
-        self.apply_sidebar_width()
 
     def load_book(self, book: Book, part_index: int=0, page_index: int=0, 
                   highlight_words: Optional[List[str]]=None, line_to_scroll: Optional[int]=None):

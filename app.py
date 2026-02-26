@@ -113,7 +113,7 @@ class MainApp(Gtk.Application):
         self.notebook.append_page(self.quran, Gtk.Label(label="🕌 القرآن"))
 
         # 2. لسان القراءة
-        read_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        read_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
 
         library_view = LibraryView(self.open_book)
         library_view.set_size_request(320, -1)
@@ -134,10 +134,13 @@ class MainApp(Gtk.Application):
         self.reader.connect_library_toggle(toggle_library_sidebar)
         self.reader.connect_sidebar_panel_requested(lambda _name: self.lib_revealer.set_reveal_child(False))
 
-        read_box.append(self.lib_revealer)
-        read_box.append(self.reader)
+        read_paned.set_start_child(self.lib_revealer)
+        read_paned.set_end_child(self.reader)
+        read_paned.set_resize_start_child(True)
+        read_paned.set_shrink_start_child(False)
+        read_paned.set_position(320)
 
-        self.notebook.append_page(read_box, Gtk.Label(label="📖 القراءة"))
+        self.notebook.append_page(read_paned, Gtk.Label(label="📖 القراءة"))
 
         # 3. لسان البحث
         self.search = SearchView(self.open_from_search)
