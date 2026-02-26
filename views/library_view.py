@@ -15,6 +15,7 @@ class LibraryView(Gtk.Box):
         self.open_cb = open_cb
         self.scanner = LibraryScanner()
         self.updater = LibraryUpdater()
+        self._last_libs = {}
 
         # منع المكتبة من التمدد
         self.set_hexpand(False)
@@ -29,6 +30,12 @@ class LibraryView(Gtk.Box):
         self.btn_update = Gtk.Button(label="تحديث الكتب")
         self.btn_update.connect("clicked", self.on_update_clicked)
         actions.append(self.btn_update)
+
+        self.group_mode = Gtk.DropDown.new_from_strings(["حسب القسم", "حسب المؤلف"])
+        self.group_mode.set_tooltip_text("طريقة عرض عناوين الكتب")
+        self.group_mode.set_selected(0)
+        self.group_mode.connect("notify::selected", self.on_group_mode_changed)
+        actions.append(self.group_mode)
 
         self.append(actions)
 
@@ -86,24 +93,53 @@ class LibraryView(Gtk.Box):
     def load_books(self):
         self.store.clear()
         libs = self.scanner.refresh()
+        self._last_libs = libs
         total_books = sum(len(v) for v in libs.values())
 
         if total_books == 0:
             self._set_status("لا توجد كتب (تحقق من مجلد books)")
             return
 
+        self.populate_tree(libs)
+
+        self._set_status(f"إجمالي الكتب: {total_books}")
+
+    def populate_tree(self, libs):
+        self.store.clear()
+        selected_mode = self.group_mode.get_selected()
+        if selected_mode == 1:
+            self._populate_by_author(libs)
+            return
+        self._populate_by_section(libs)
+
+    def _populate_by_section(self, libs):
         for section_name, books in libs.items():
             sec_display = f"{section_name} ({len(books)})"
             sec_iter = self.store.append(None, [sec_display, None])
-
             for info in books:
-                # إظهار: عنوان - مؤلف
                 display = info.title
                 if info.author:
                     display = f"{info.title} - {info.author}"
                 self.store.append(sec_iter, [display, info.dir_path])
 
-        self._set_status(f"إجمالي الكتب: {total_books}")
+    def _populate_by_author(self, libs):
+        author_map = {}
+        for books in libs.values():
+            for info in books:
+                author_name = info.author or "غير معروف"
+                author_map.setdefault(author_name, []).append(info)
+
+        for author_name in sorted(author_map.keys()):
+            books = sorted(author_map[author_name], key=lambda b: b.title)
+            auth_display = f"{author_name} ({len(books)})"
+            auth_iter = self.store.append(None, [auth_display, None])
+            for info in books:
+                self.store.append(auth_iter, [info.title, info.dir_path])
+
+    def on_group_mode_changed(self, *_args):
+        if not self._last_libs:
+            return
+        self.populate_tree(self._last_libs)
 
     def on_update_clicked(self, _btn):
         self.btn_update.set_sensitive(False)

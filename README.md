@@ -119,8 +119,7 @@ books/
 {
   "title": "رياض الصالحين",
   "author": "الإمام النووي",
-  "death_year": "676هـ",
-  "category": "حديث"
+  "death_year": "676هـ"
 }
 ```
 
