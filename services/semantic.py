@@ -32,6 +32,22 @@ class SemanticRuntime:
     def _run(self, args: List[str], env: Optional[dict] = None):
         return subprocess.run(args, check=True, capture_output=True, text=True, env=env)
 
+    def _format_install_error(self, raw_err: str) -> str:
+        """تحويل أخطاء pip الطويلة لرسالة أوضح ومختصرة للمستخدم."""
+        err = (raw_err or "").strip()
+        low = err.lower()
+        if "no matching distribution found" in low:
+            return "تعذر تثبيت المتطلبات: لا توجد نسخة مناسبة لأحد الحزم على هذا النظام."
+        if "could not install packages" in low or "failed building wheel" in low:
+            return "تعذر تثبيت المتطلبات داخل البيئة الافتراضية. حاول تحديث النظام ثم أعد المحاولة."
+        if "temporary failure in name resolution" in low or "connection" in low:
+            return "تعذر تنزيل المتطلبات بسبب مشكلة اتصال بالإنترنت."
+        if "permission denied" in low:
+            return "تعذر تثبيت المتطلبات بسبب صلاحيات غير كافية."
+
+        short = " ".join(err.splitlines()[-3:]).strip()
+        return f"تعذر تجهيز البحث الدلالي: {short or 'خطأ غير معروف أثناء التثبيت.'}"
+
     def ensure_ready(self, progress_cb: Optional[Callable[[str], None]] = None) -> Tuple[bool, str]:
         def notify(msg: str):
             if progress_cb:
@@ -68,7 +84,7 @@ class SemanticRuntime:
             return True, f"تم تجهيز البحث الدلالي بنجاح: FAISS + E5 ({self.model_name})"
         except subprocess.CalledProcessError as e:
             err = (e.stderr or e.stdout or str(e)).strip()
-            return False, f"فشل تجهيز البحث الدلالي: {err}"
+            return False, self._format_install_error(err)
 
 
 class EmbeddingBackend:
