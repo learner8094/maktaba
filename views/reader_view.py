@@ -28,6 +28,7 @@ class ReaderView(Gtk.Box):
         self.sidebar_revealer = Gtk.Revealer()
         self.sidebar_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_LEFT)
         self.sidebar_revealer.set_reveal_child(False)
+        self.sidebar_revealer.set_visible(False)
         self.append(self.sidebar_revealer)
 
         self.sidebar_stack = Gtk.Stack()
@@ -391,6 +392,7 @@ class ReaderView(Gtk.Box):
 
     def hide_sidebar_panel(self):
         self.sidebar_revealer.set_reveal_child(False)
+        self.sidebar_revealer.set_visible(False)
         self.sidebar_separator.set_visible(False)
 
     def show_sidebar_panel(self, panel_name: str):
@@ -399,10 +401,12 @@ class ReaderView(Gtk.Box):
 
         if current_visible and current_panel == panel_name:
             self.sidebar_revealer.set_reveal_child(False)
+            self.sidebar_revealer.set_visible(False)
             self.sidebar_separator.set_visible(False)
             return
 
         self.sidebar_stack.set_visible_child_name(panel_name)
+        self.sidebar_revealer.set_visible(True)
         self.sidebar_revealer.set_reveal_child(True)
         self.sidebar_separator.set_visible(True)
         if self._sidebar_panel_requested_cb:
