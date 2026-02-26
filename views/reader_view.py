@@ -212,9 +212,7 @@ class ReaderView(Gtk.Box):
         info_text = (
             f"📖 الكتاب: {m.get('title', self.book.title)}\n"
             f"👤 المؤلف: {auth_str}\n"
-            f"📁 التصنيف: {category}\n"
-            f"📜 الرخصة: {m.get('license', 'غير محددة')}\n"
-            f"🔗 المصدر: {m.get('source', {}).get('name', 'الشاملة')}"
+            f"📁 التصنيف: {category}"
         )
 
         dlg = Gtk.MessageDialog(
