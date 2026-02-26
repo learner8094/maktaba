@@ -4,6 +4,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib, Gio, Gdk
 import os
 from typing import List, Optional
+import threading
 
 # استيراد الواجهات
 from views.library_view import LibraryView
@@ -15,6 +16,7 @@ from views.semantic_view import SemanticView
 from book import Book
 from config import BOOKS_DIR, STYLE_FILE, load_config, save_config
 from services.indexing import needs_reindex, run_recollindex
+from services.app_update import AppUpdater
 
 class MainApp(Gtk.Application):
     def __init__(self):
@@ -27,6 +29,7 @@ class MainApp(Gtk.Application):
         self.config = load_config()
         if "last_positions" not in self.config:
             self.config["last_positions"] = {}
+        self.app_updater = AppUpdater()
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -41,6 +44,14 @@ class MainApp(Gtk.Application):
         about_action = Gio.SimpleAction.new("about", None)
         about_action.connect("activate", self.show_about)
         self.add_action(about_action)
+
+        check_app_update_action = Gio.SimpleAction.new("check_app_update", None)
+        check_app_update_action.connect("activate", self.on_check_app_update)
+        self.add_action(check_app_update_action)
+
+        apply_app_update_action = Gio.SimpleAction.new("apply_app_update", None)
+        apply_app_update_action.connect("activate", self.on_apply_app_update)
+        self.add_action(apply_app_update_action)
 
     def load_css(self):
         """تحميل وتطبيق ملف التنسيقات الخارجي"""
@@ -87,6 +98,8 @@ class MainApp(Gtk.Application):
         header.pack_end(menu_button)
 
         menu = Gio.Menu()
+        menu.append("فحص نسخة جديدة", "app.check_app_update")
+        menu.append("تحديث التطبيق", "app.apply_app_update")
         menu.append("حول البرنامج", "app.about")
         menu.append("خروج", "app.quit")
         menu_button.set_menu_model(menu)
@@ -199,6 +212,46 @@ class MainApp(Gtk.Application):
             self.save_position(book, page)
         except Exception as e:
             print(f"فشل في فتح القرآن: {e}")
+
+
+    def _show_message_dialog(self, message: str, message_type: Gtk.MessageType = Gtk.MessageType.INFO):
+        dlg = Gtk.MessageDialog(
+            transient_for=self.props.active_window,
+            modal=True,
+            buttons=Gtk.ButtonsType.OK,
+            message_type=message_type,
+            text=message,
+        )
+        dlg.connect("response", lambda d, r: d.destroy())
+        dlg.present()
+
+    def on_check_app_update(self, *_a):
+        self._show_message_dialog("جارٍ التحقق من آخر إصدار...")
+
+        def worker():
+            try:
+                info = self.app_updater.safe_check_for_update()
+                if info.update_available:
+                    msg = f"متاح إصدار جديد: {info.latest_version} (الحالي: {info.current_version})"
+                else:
+                    msg = f"نسختك محدثة ({info.current_version})"
+                GLib.idle_add(self._show_message_dialog, msg)
+            except Exception as e:
+                GLib.idle_add(self._show_message_dialog, str(e), Gtk.MessageType.ERROR)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def on_apply_app_update(self, *_a):
+        if self.app_updater.is_flatpak():
+            self._show_message_dialog("نسخة Flatpak: حدّث التطبيق من المتجر أو بالأمر: flatpak update io.github.maktaba")
+            return
+
+        release_url = f"https://github.com/{self.app_updater.repo}/releases"
+        try:
+            Gio.AppInfo.launch_default_for_uri(release_url, None)
+            self._show_message_dialog("تم فتح صفحة الإصدارات. نزّل آخر نسخة وثبّتها.")
+        except Exception:
+            self._show_message_dialog(f"افتح يدويًا صفحة الإصدارات: {release_url}", Gtk.MessageType.ERROR)
 
     def show_about(self, *a):
         dlg = Gtk.AboutDialog(
