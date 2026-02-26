@@ -69,6 +69,11 @@ class SemanticView(Gtk.Box):
         self.btn_index.connect("clicked", self.on_build_index)
         bar.append(self.btn_index)
 
+        self.btn_start = Gtk.Button(label="الشروع")
+        self.btn_start.set_tooltip_text("يجهّز venv ويثبت FAISS + E5 تلقائياً")
+        self.btn_start.connect("clicked", self.on_start_semantic)
+        bar.append(self.btn_start)
+
         # شريط الحالة
         self.status = Gtk.Label(label="")
         self.status.set_halign(Gtk.Align.END)
@@ -77,7 +82,7 @@ class SemanticView(Gtk.Box):
 
         # ملاحظة الاعتماديات
         if not self.backend.available:
-            self.status.set_label("للاستفادة من البحث الدلالي: ثبّت fastembed (مستحسن) أو sentence-transformers.")
+            self.status.set_label("البحث الدلالي غير مجهّز بعد. اضغط زر الشروع لتثبيت FAISS + E5 تلقائياً.")
         else:
             self.status.set_label(f"محرك التضمين: {self.backend.name}")
 
@@ -147,6 +152,7 @@ class SemanticView(Gtk.Box):
         self._busy = busy
         self.btn_search.set_sensitive(not busy)
         self.btn_index.set_sensitive(not busy)
+        self.btn_start.set_sensitive(not busy)
         if text:
             self.status.set_label(text)
 
@@ -157,7 +163,7 @@ class SemanticView(Gtk.Box):
         if not query:
             return
         if not self.backend.available:
-            self.status.set_label("البحث الدلالي غير متاح: ثبّت fastembed أو sentence-transformers.")
+            self.status.set_label("البحث الدلالي غير متاح بعد: اضغط زر الشروع أولاً.")
             return
 
         self.store.clear()
@@ -295,7 +301,7 @@ class SemanticView(Gtk.Box):
         if self._busy:
             return
         if not self.backend.available:
-            self.status.set_label("الفهرسة الدلالية غير متاحة: ثبّت fastembed أو sentence-transformers.")
+            self.status.set_label("الفهرسة الدلالية غير متاحة بعد: اضغط زر الشروع أولاً.")
             return
 
         self._set_busy(True, "جاري بناء الفهرس الدلالي...")
@@ -353,3 +359,22 @@ class SemanticView(Gtk.Box):
             GLib.idle_add(self._set_busy, False, f"اكتملت الفهرسة الدلالية: {total_chunks} مقطعاً")
         except Exception as e:
             GLib.idle_add(self._set_busy, False, f"فشل بناء الفهرس: {e}")
+
+    def on_start_semantic(self, *args):
+        if self._busy:
+            return
+        self._set_busy(True, "جاري تجهيز venv ومحرك FAISS + E5...")
+        th = threading.Thread(target=self._start_semantic_thread, daemon=True)
+        th.start()
+
+    def _start_semantic_thread(self):
+        try:
+            def progress(msg: str):
+                GLib.idle_add(self.status.set_label, msg)
+
+            ok, msg = self.backend.ensure_ready(progress_cb=progress)
+            if ok:
+                self.index = SemanticIndex(self.backend)
+            GLib.idle_add(self._set_busy, False, msg)
+        except Exception as e:
+            GLib.idle_add(self._set_busy, False, f"فشل التجهيز: {e}")
