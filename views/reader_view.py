@@ -25,12 +25,16 @@ class ReaderView(Gtk.Box):
         self.set_hexpand(True)
         self.set_vexpand(True)
         
+        self.overlay = Gtk.Overlay()
+        self.overlay.set_hexpand(True)
+        self.overlay.set_vexpand(True)
+        self.append(self.overlay)
+
         # 1. القائمة الجانبية الموحدة (الفهرس/البحث داخل الكتاب)
         self.sidebar_revealer = Gtk.Revealer()
         self.sidebar_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_LEFT)
         self.sidebar_revealer.set_reveal_child(False)
         self.sidebar_revealer.set_visible(False)
-        self.append(self.sidebar_revealer)
 
         self.sidebar_stack = Gtk.Stack()
         self.sidebar_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
@@ -126,15 +130,22 @@ class ReaderView(Gtk.Box):
         self.sidebar_stack.add_titled(sidebar_toc_box, "toc", "فهرس الكتاب")
         self.sidebar_stack.add_titled(sidebar_search_box, "search", "بحث داخل الكتاب")
         self.sidebar_revealer.set_child(self.sidebar_stack)
+
         self.sidebar_separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
         self.sidebar_separator.set_visible(False)
-        self.append(self.sidebar_separator)
+
+        sidebar_overlay_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        sidebar_overlay_box.set_halign(Gtk.Align.START)
+        sidebar_overlay_box.set_valign(Gtk.Align.FILL)
+        sidebar_overlay_box.append(self.sidebar_separator)
+        sidebar_overlay_box.append(self.sidebar_revealer)
+        self.overlay.add_overlay(sidebar_overlay_box)
 
         # 2. منطقة القراءة الرئيسية
         main_area = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         main_area.set_hexpand(True)
         main_area.set_vexpand(True)
-        self.append(main_area)
+        self.overlay.set_child(main_area)
 
         # الشريط العلوي
         top_bar = Gtk.Box(spacing=6)
