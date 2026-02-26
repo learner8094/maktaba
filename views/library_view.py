@@ -1,12 +1,14 @@
 # views/library_view.py
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Pango, GLib
+from gi.repository import Gtk, Pango, GLib, Gio
 from typing import Callable
 import threading
 
+from services.app_update import AppUpdater
 from services.library_scan import LibraryScanner
 from services.library_update import LibraryUpdater
+
 
 class LibraryView(Gtk.Box):
     def __init__(self, open_cb: Callable[[str], None]):
@@ -14,6 +16,7 @@ class LibraryView(Gtk.Box):
         self.open_cb = open_cb
         self.scanner = LibraryScanner()
         self.updater = LibraryUpdater()
+        self.app_updater = AppUpdater()
 
         # منع المكتبة من التمدد
         self.set_hexpand(False)
@@ -25,9 +28,17 @@ class LibraryView(Gtk.Box):
         actions.set_margin_start(10)
         actions.set_margin_end(10)
 
-        self.btn_update = Gtk.Button(label="تحديث المكتبة")
+        self.btn_update = Gtk.Button(label="تحديث الكتب")
         self.btn_update.connect("clicked", self.on_update_clicked)
         actions.append(self.btn_update)
+
+        self.btn_check_app_update = Gtk.Button(label="فحص نسخة جديدة")
+        self.btn_check_app_update.connect("clicked", self.on_check_app_update_clicked)
+        actions.append(self.btn_check_app_update)
+
+        self.btn_apply_app_update = Gtk.Button(label="تحديث التطبيق")
+        self.btn_apply_app_update.connect("clicked", self.on_apply_app_update_clicked)
+        actions.append(self.btn_apply_app_update)
 
         self.append(actions)
 
@@ -53,6 +64,8 @@ class LibraryView(Gtk.Box):
         col = Gtk.TreeViewColumn("المكتبة", rend, text=0)
         col.set_expand(True)
         col.set_resizable(True)
+        col.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
+        col.set_fixed_width(300)
         self.tree.append_column(col)
 
         scroll.set_child(self.tree)
@@ -66,11 +79,19 @@ class LibraryView(Gtk.Box):
         stats_box.set_margin_end(10)
 
         self.lbl_stats = Gtk.Label(label="جاري التحميل...")
+        self.lbl_stats.set_xalign(0)
+        self.lbl_stats.set_hexpand(True)
+        self.lbl_stats.set_ellipsize(Pango.EllipsizeMode.END)
+        self.lbl_stats.set_single_line_mode(True)
         stats_box.append(self.lbl_stats)
 
         self.append(stats_box)
 
         self.load_books()
+
+    def _set_status(self, message: str):
+        self.lbl_stats.set_label(message)
+        self.lbl_stats.set_tooltip_text(message)
 
     def load_books(self):
         self.store.clear()
@@ -78,7 +99,7 @@ class LibraryView(Gtk.Box):
         total_books = sum(len(v) for v in libs.values())
 
         if total_books == 0:
-            self.lbl_stats.set_label("لا توجد كتب (تحقق من مجلد books)")
+            self._set_status("لا توجد كتب (تحقق من مجلد books)")
             return
 
         for section_name, books in libs.items():
@@ -92,11 +113,11 @@ class LibraryView(Gtk.Box):
                     display = f"{info.title} - {info.author}"
                 self.store.append(sec_iter, [display, info.dir_path])
 
-        self.lbl_stats.set_label(f"إجمالي الكتب: {total_books}")
+        self._set_status(f"إجمالي الكتب: {total_books}")
 
     def on_update_clicked(self, _btn):
         self.btn_update.set_sensitive(False)
-        self.lbl_stats.set_label("جاري تحديث الكتب من GitHub...")
+        self._set_status("جاري تحديث الكتب من GitHub...")
 
         def worker():
             try:
@@ -116,8 +137,42 @@ class LibraryView(Gtk.Box):
         self.btn_update.set_sensitive(True)
         if refresh:
             self.load_books()
-        self.lbl_stats.set_label(message)
+        self._set_status(message)
         return False
+
+    def on_check_app_update_clicked(self, _btn):
+        self.btn_check_app_update.set_sensitive(False)
+        self._set_status("جارٍ التحقق من آخر إصدار...")
+
+        def worker():
+            try:
+                info = self.app_updater.safe_check_for_update()
+                if info.update_available:
+                    msg = f"متاح إصدار جديد: {info.latest_version} (الحالي: {info.current_version})"
+                else:
+                    msg = f"نسختك محدثة ({info.current_version})"
+                GLib.idle_add(self._finish_app_update_check, msg)
+            except Exception as e:
+                GLib.idle_add(self._finish_app_update_check, str(e))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _finish_app_update_check(self, message: str):
+        self.btn_check_app_update.set_sensitive(True)
+        self._set_status(message)
+        return False
+
+    def on_apply_app_update_clicked(self, _btn):
+        if self.app_updater.is_flatpak():
+            self._set_status("نسخة Flatpak: حدّث التطبيق من المتجر أو بالأمر: flatpak update io.github.maktaba")
+            return
+
+        release_url = f"https://github.com/{self.app_updater.repo}/releases"
+        try:
+            Gio.AppInfo.launch_default_for_uri(release_url, None)
+            self._set_status("تم فتح صفحة الإصدارات. نزّل آخر نسخة وثبّتها.")
+        except Exception:
+            self._set_status(f"افتح يدويًا صفحة الإصدارات: {release_url}")
 
     def on_row_activated(self, view, path, col):
         it = self.store.get_iter(path)

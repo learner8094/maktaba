@@ -20,7 +20,7 @@ class LibraryUpdater:
     """تحديث الكتب من GitHub (مجلد books) إلى مجلد books المحلي."""
 
     def __init__(self, repo: Optional[str] = None, branch: str = "main"):
-        self.repo = repo or os.environ.get("MAKTABA_GITHUB_REPO", "maktaba/maktaba")
+        self.repo = repo or os.environ.get("MAKTABA_GITHUB_REPO", "learner8094/maktaba")
         self.branch = os.environ.get("MAKTABA_GITHUB_BRANCH", branch)
 
     def _api_url(self, path: str) -> str:
@@ -66,11 +66,7 @@ class LibraryUpdater:
                     raise
                 last_error = e
 
-        raise RuntimeError(
-            "تعذر العثور على مجلد books في GitHub. "
-            f"تحقق من MAKTABA_GITHUB_REPO='{self.repo}' و"
-            f" MAKTABA_GITHUB_BRANCH (جرّبنا: {', '.join(tried_branches)})."
-        ) from last_error
+        raise RuntimeError("تعذر العثور على مجلد books في المستودع المحدد.") from last_error
 
     def update_new_books(self) -> LibraryUpdateResult:
         added_books = 0
