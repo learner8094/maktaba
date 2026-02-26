@@ -12,6 +12,7 @@ class HTMLExtractor(HTMLParser):
         self.lines = []
         self.sections = [] # (title, line_index, level)
         self.line_to_page = {}
+        self.page_break_line_idxs = []
         self.current_page_num = None
         self._line = 0
         self._in_h = False
@@ -21,6 +22,13 @@ class HTMLExtractor(HTMLParser):
         self._in_li = False 
 
     def handle_starttag(self, tag, attrs):
+        attrs_dict = dict(attrs)
+
+        if tag == "span":
+            classes = (attrs_dict.get("class") or "").split()
+            if "page-break-marker" in classes:
+                self.page_break_line_idxs.append(self._line)
+
         if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
             self._in_h = True
             try:
@@ -32,12 +40,11 @@ class HTMLExtractor(HTMLParser):
             self._in_li = True
 
         if tag == "span":
-            for k, v in attrs:
-                if k == "class" and "title" in v:
-                    self._in_title_span = True
-                    break
-                if k == "class" and v == "PageNumber":
-                    self._in_page_number = True
+            class_attr = attrs_dict.get("class", "")
+            if "title" in class_attr:
+                self._in_title_span = True
+            if "PageNumber" in class_attr.split():
+                self._in_page_number = True
 
     def handle_endtag(self, tag):
         if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
@@ -83,6 +90,7 @@ class BookPart:
         self.page_first_line_idxs = [] 
         self.line_to_page = {}
         self.line_to_page_index = {}
+        self.page_break_line_idxs = []
         self.load()
 
     def load(self):
@@ -114,6 +122,7 @@ class BookPart:
                 self.lines = extractor.lines
                 self.sections = extractor.sections
                 self.line_to_page = extractor.line_to_page
+                self.page_break_line_idxs = extractor.page_break_line_idxs
                 self.paginate()
         except Exception as e:
             print(f"فشل في تحميل الجزء: {e}")
@@ -123,6 +132,21 @@ class BookPart:
         self.page_first_line_idxs = []
         
         if not self.is_quran:
+            if self.page_break_line_idxs:
+                breakpoints = sorted({
+                    idx for idx in self.page_break_line_idxs
+                    if 0 < idx < len(self.lines)
+                })
+                starts = [0] + breakpoints
+
+                for page_idx, start in enumerate(starts):
+                    end = breakpoints[page_idx] if page_idx < len(breakpoints) else len(self.lines)
+                    self.page_first_line_idxs.append(start)
+                    self.pages.append("\n".join(self.lines[start:end]))
+                    for line_idx in range(start, end):
+                        self.line_to_page_index[line_idx] = page_idx
+                return
+
             # تقسيم النص إلى صفحات ثابتة بعدد أسطر محدد (PAGE_LINES)
             # مع إنشاء خريطة line_to_page_index لتمكين الانتقال الدقيق لعناوين الفصول.
             joiner = "\n"
