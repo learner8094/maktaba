@@ -17,6 +17,7 @@ class ReaderView(Gtk.Box):
         self.save_cb = save_cb
         self.book: Optional[Book] = None
         self.font_size = CONFIG.get("font_size", 22)
+        self.sidebar_width = int(CONFIG.get("reader_sidebar_width", 320))
         self._pending_highlight_words: List[str] = []
         self._sidebar_panel_requested_cb: Optional[Callable[[str], None]] = None
         
@@ -35,7 +36,6 @@ class ReaderView(Gtk.Box):
         self.sidebar_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
 
         sidebar_toc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        sidebar_toc_box.set_size_request(280, -1)
         sidebar_toc_box.add_css_class("sidebar")
 
         lbl_toc = Gtk.Label(label="فهرس الكتاب")
@@ -69,7 +69,6 @@ class ReaderView(Gtk.Box):
         sidebar_toc_box.append(sec_scroll)
 
         sidebar_search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        sidebar_search_box.set_size_request(280, -1)
         sidebar_search_box.add_css_class("sidebar")
 
         lbl_search = Gtk.Label(label="بحث داخل الكتاب")
@@ -162,6 +161,18 @@ class ReaderView(Gtk.Box):
         self.btn_sidebar_search.connect("clicked", lambda x: self.show_sidebar_panel("search"))
         top_bar.append(self.btn_sidebar_search)
 
+        box_sidebar_width = Gtk.Box()
+        box_sidebar_width.add_css_class("linked")
+        btn_sidebar_w_inc = Gtk.Button.new_from_icon_name("list-add-symbolic")
+        btn_sidebar_w_inc.set_tooltip_text("زيادة عرض الشريط الجانبي")
+        btn_sidebar_w_inc.connect("clicked", lambda x: self.change_sidebar_width(20))
+        btn_sidebar_w_dec = Gtk.Button.new_from_icon_name("list-remove-symbolic")
+        btn_sidebar_w_dec.set_tooltip_text("تقليل عرض الشريط الجانبي")
+        btn_sidebar_w_dec.connect("clicked", lambda x: self.change_sidebar_width(-20))
+        box_sidebar_width.append(btn_sidebar_w_inc)
+        box_sidebar_width.append(btn_sidebar_w_dec)
+        top_bar.append(box_sidebar_width)
+
         self.lbl_book_title = Gtk.Label(label="")
         self.lbl_book_title.set_hexpand(True) 
         self.lbl_book_title.add_css_class("title-4")
@@ -246,6 +257,7 @@ class ReaderView(Gtk.Box):
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
         self.apply_font_size()
+        self.apply_sidebar_width()
 
     def apply_font_size(self):
         """تطبيق حجم الخط الديناميكي فقط"""
@@ -309,6 +321,20 @@ class ReaderView(Gtk.Box):
         CONFIG["font_size"] = self.font_size
         save_config(CONFIG)
         self.apply_font_size()
+
+    def apply_sidebar_width(self):
+        width = max(220, min(520, int(self.sidebar_width)))
+        self.sidebar_width = width
+        for child in ("toc", "search"):
+            panel = self.sidebar_stack.get_child_by_name(child)
+            if panel:
+                panel.set_size_request(width, -1)
+
+    def change_sidebar_width(self, delta: int):
+        self.sidebar_width = max(220, min(520, self.sidebar_width + delta))
+        CONFIG["reader_sidebar_width"] = self.sidebar_width
+        save_config(CONFIG)
+        self.apply_sidebar_width()
 
     def load_book(self, book: Book, part_index: int=0, page_index: int=0, 
                   highlight_words: Optional[List[str]]=None, line_to_scroll: Optional[int]=None):
