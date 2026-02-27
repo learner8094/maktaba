@@ -210,7 +210,11 @@ class BookPart:
     def get_page_number(self, page_idx):
         if self.is_quran:
             return str(page_idx + 1)
-        start_line = page_idx * PAGE_LINES
+
+        if 0 <= page_idx < len(self.page_first_line_idxs):
+            start_line = self.page_first_line_idxs[page_idx]
+        else:
+            start_line = page_idx * PAGE_LINES
         return self.line_to_page.get(start_line, "N/A")
 
     def get_surah_for_line(self, line):
