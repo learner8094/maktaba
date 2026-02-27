@@ -17,6 +17,12 @@ class ReaderView(Gtk.Box):
         self.save_cb = save_cb
         self.book: Optional[Book] = None
         self.font_size = CONFIG.get("font_size", 22)
+        sidebar_width_raw = CONFIG.get("reader_sidebar_width", 240)
+        try:
+            self.sidebar_width = int(sidebar_width_raw)
+        except (TypeError, ValueError):
+            self.sidebar_width = 240
+        self.sidebar_width = max(180, min(420, self.sidebar_width))
         self._pending_highlight_words: List[str] = []
         self._sidebar_panel_requested_cb: Optional[Callable[[str], None]] = None
         
@@ -25,7 +31,7 @@ class ReaderView(Gtk.Box):
         self.set_vexpand(True)
         
         self.library_panel_holder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.library_panel_holder.set_size_request(280, -1)
+        self.library_panel_holder.set_size_request(self.sidebar_width, -1)
         self.library_panel_holder.add_css_class("sidebar")
         self.sidebar_stack = Gtk.Stack()
         self.sidebar_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
@@ -36,13 +42,10 @@ class ReaderView(Gtk.Box):
         self.sidebar_revealer.set_visible(False)
         self.sidebar_revealer.set_child(self.sidebar_stack)
 
-        self.sidebar_separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
-        self.sidebar_separator.set_visible(False)
-
         # 1. القائمة الجانبية الموحدة (المكتبة/الفهرس/البحث داخل الكتاب)
 
         sidebar_toc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        sidebar_toc_box.set_size_request(280, -1)
+        sidebar_toc_box.set_size_request(self.sidebar_width, -1)
         sidebar_toc_box.add_css_class("sidebar")
 
         lbl_toc = Gtk.Label(label="فهرس الكتاب")
@@ -76,7 +79,7 @@ class ReaderView(Gtk.Box):
         sidebar_toc_box.append(sec_scroll)
 
         sidebar_search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        sidebar_search_box.set_size_request(280, -1)
+        sidebar_search_box.set_size_request(self.sidebar_width, -1)
         sidebar_search_box.add_css_class("sidebar")
 
         lbl_search = Gtk.Label(label="بحث داخل الكتاب")
@@ -195,8 +198,16 @@ class ReaderView(Gtk.Box):
         body_box.set_vexpand(True)
         main_area.append(body_box)
 
-        body_box.append(self.sidebar_separator)
-        body_box.append(self.sidebar_revealer)
+        self.reader_paned = Gtk.Paned.new(Gtk.Orientation.HORIZONTAL)
+        self.reader_paned.set_hexpand(True)
+        self.reader_paned.set_vexpand(True)
+        self.reader_paned.set_resize_start_child(False)
+        self.reader_paned.set_shrink_start_child(True)
+        self.reader_paned.set_shrink_end_child(True)
+        self.reader_paned.set_wide_handle(True)
+        body_box.append(self.reader_paned)
+
+        self.reader_paned.set_start_child(self.sidebar_revealer)
 
         # وعاء النص
         self.text = Gtk.TextView(editable=False, wrap_mode=Gtk.WrapMode.WORD)
@@ -212,7 +223,9 @@ class ReaderView(Gtk.Box):
         scroll.set_child(self.text)
         scroll.set_vexpand(True)
         scroll.set_hexpand(True)
-        body_box.append(scroll)
+        self.reader_paned.set_end_child(scroll)
+        self.reader_paned.set_position(self.sidebar_width)
+        self.reader_paned.connect("notify::position", self.on_reader_paned_position_changed)
         
         key_ctrl = Gtk.EventControllerKey()
         key_ctrl.connect("key-pressed", self.on_key_pressed)
@@ -411,7 +424,6 @@ class ReaderView(Gtk.Box):
     def hide_sidebar_panel(self):
         self.sidebar_revealer.set_reveal_child(False)
         self.sidebar_revealer.set_visible(False)
-        self.sidebar_separator.set_visible(False)
 
     def show_sidebar_panel(self, panel_name: str):
         current_visible = self.sidebar_revealer.get_reveal_child()
@@ -420,15 +432,28 @@ class ReaderView(Gtk.Box):
         if current_visible and current_panel == panel_name:
             self.sidebar_revealer.set_reveal_child(False)
             self.sidebar_revealer.set_visible(False)
-            self.sidebar_separator.set_visible(False)
             return
 
         self.sidebar_stack.set_visible_child_name(panel_name)
         self.sidebar_revealer.set_visible(True)
         self.sidebar_revealer.set_reveal_child(True)
-        self.sidebar_separator.set_visible(True)
+        self.reader_paned.set_position(self.sidebar_width)
         if self._sidebar_panel_requested_cb:
             self._sidebar_panel_requested_cb(panel_name)
+
+    def on_reader_paned_position_changed(self, _paned, _pspec):
+        if not self.sidebar_revealer.get_reveal_child():
+            return
+
+        new_width = self.reader_paned.get_position()
+        clamped_width = max(180, min(420, new_width))
+        if clamped_width != new_width:
+            self.reader_paned.set_position(clamped_width)
+
+        if clamped_width != self.sidebar_width:
+            self.sidebar_width = clamped_width
+            CONFIG["reader_sidebar_width"] = self.sidebar_width
+            save_config(CONFIG)
 
     def perform_book_search(self, *_args):
         self.book_search_store.clear()
