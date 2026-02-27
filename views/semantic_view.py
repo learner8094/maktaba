@@ -5,7 +5,6 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib, Pango
 
 import threading
-import datetime
 from typing import List, Optional, Tuple
 
 from book import Book
@@ -135,14 +134,6 @@ class SemanticView(Gtk.Box):
         scroll.set_hexpand(True)
         self.append(scroll)
 
-    def _log(self, msg: str):
-        ts = datetime.datetime.now().strftime("%H:%M:%S")
-        print(f"[semantic {ts}] {msg}")
-
-    def _status_and_log(self, msg: str):
-        self.status.set_label(msg)
-        self._log(msg)
-
     def on_scope_changed(self, combo):
         self.scope_entry.set_visible(combo.get_active_text() != "كل الكتب")
 
@@ -163,7 +154,7 @@ class SemanticView(Gtk.Box):
         self.btn_index.set_sensitive(not busy)
         self.btn_start.set_sensitive(not busy)
         if text:
-            self._status_and_log(text)
+            self.status.set_label(text)
 
     def on_search(self, *args):
         if self._busy:
@@ -372,7 +363,6 @@ class SemanticView(Gtk.Box):
     def on_start_semantic(self, *args):
         if self._busy:
             return
-        self._log("تم الضغط على زر الشروع")
         self._set_busy(True, "جاري تجهيز venv ومحرك FAISS + E5...")
         th = threading.Thread(target=self._start_semantic_thread, daemon=True)
         th.start()
@@ -380,7 +370,7 @@ class SemanticView(Gtk.Box):
     def _start_semantic_thread(self):
         try:
             def progress(msg: str):
-                GLib.idle_add(self._status_and_log, msg)
+                GLib.idle_add(self.status.set_label, msg)
 
             ok, msg = self.backend.ensure_ready(progress_cb=progress)
             if ok:
