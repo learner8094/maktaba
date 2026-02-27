@@ -110,7 +110,7 @@ class MainApp(Gtk.Application):
 
         # 1. لسان القرآن
         self.quran = QuranView(self.open_quran_book, self.save_position)
-        self.notebook.append_page(self.quran, Gtk.Label(label="🕌 القرآن"))
+        self.notebook.append_page(self.quran, self._build_tab_label("bookmarks-symbolic", "القرآن"))
 
         # 2. لسان القراءة
         read_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
@@ -140,17 +140,29 @@ class MainApp(Gtk.Application):
         read_paned.set_shrink_start_child(False)
         read_paned.set_position(320)
 
-        self.notebook.append_page(read_paned, Gtk.Label(label="📖 القراءة"))
+        self.notebook.append_page(read_paned, self._build_tab_label("document-open-symbolic", "القراءة"))
 
         # 3. لسان البحث
         self.search = SearchView(self.open_from_search)
-        self.notebook.append_page(self.search, Gtk.Label(label="🔍 البحث"))
+        self.notebook.append_page(self.search, self._build_tab_label("system-search-symbolic", "البحث"))
 
         # 4. لسان البحث الدلالي (بديل الذكاء الاصطناعي الثقيل)
         self.semantic = SemanticView(self.open_from_semantic)
-        self.notebook.append_page(self.semantic, Gtk.Label(label="🧠 البحث الدلالي"))
+        self.notebook.append_page(self.semantic, self._build_tab_label("edit-find-symbolic", "البحث الدلالي"))
 
         win.present()
+
+    def _build_tab_label(self, icon_name: str, text: str) -> Gtk.Widget:
+        tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+
+        icon = Gtk.Image.new_from_icon_name(icon_name)
+        icon.set_icon_size(Gtk.IconSize.NORMAL)
+
+        label = Gtk.Label(label=text)
+
+        tab_box.append(icon)
+        tab_box.append(label)
+        return tab_box
 
     def on_global_key_pressed(self, controller, keyval, keycode, state):
         if keyval not in (Gdk.KEY_F5, Gdk.KEY_F6):
