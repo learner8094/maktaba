@@ -76,16 +76,3 @@ textview text selection {
 .dim-label {
     opacity: 0.75;
 }
-
-.reader-top-bar {
-    padding: 4px 8px;
-    background-color: alpha(@window_fg_color, 0.03);
-    border: 1px solid alpha(@borders, 0.35);
-    border-radius: 10px;
-}
-
-.reader-right-icons button {
-    min-width: 36px;
-    min-height: 36px;
-    padding: 4px;
-}
