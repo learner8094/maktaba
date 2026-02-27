@@ -341,6 +341,12 @@ class ReaderView(Gtk.Box):
         save_config(CONFIG)
         self.apply_font_size()
 
+    def set_sidebar_width(self, width: int):
+        self.sidebar_width = max(180, min(420, int(width)))
+        self.library_panel_holder.set_size_request(self.sidebar_width, -1)
+        self.sidebar_stack.set_size_request(self.sidebar_width, -1)
+
+
     def load_book(self, book: Book, part_index: int=0, page_index: int=0, 
                   highlight_words: Optional[List[str]]=None, line_to_scroll: Optional[int]=None):
         self.book = book
