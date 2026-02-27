@@ -57,7 +57,7 @@ class SearchView(Gtk.Box):
         self.append(self.lbl_status)
 
         # قائمة النتائج
-        self.store = Gtk.ListStore(str, int, str, str)  # filepath, line, display, snippet
+        self.store = Gtk.ListStore(str, int, str, str, str, int)  # filepath, line, display, snippet, part_title, page_1based
         self.tree = Gtk.TreeView(model=self.store)
         self.tree.set_direction(Gtk.TextDirection.RTL)
 
@@ -77,6 +77,23 @@ class SearchView(Gtk.Box):
         col_book.add_attribute(rend_book, "text", 2)
         col_book.set_fixed_width(420)
         self.tree.append_column(col_book)
+
+        # العمود: الفصل
+        col_part = Gtk.TreeViewColumn("الفصل")
+        rend_part = Gtk.CellRendererText()
+        rend_part.set_property("ellipsize", Pango.EllipsizeMode.END)
+        col_part.pack_start(rend_part, True)
+        col_part.add_attribute(rend_part, "text", 4)
+        col_part.set_fixed_width(220)
+        self.tree.append_column(col_part)
+
+        # العمود: الصفحة
+        col_page = Gtk.TreeViewColumn("الصفحة")
+        rend_page = Gtk.CellRendererText()
+        col_page.pack_start(rend_page, True)
+        col_page.add_attribute(rend_page, "text", 5)
+        col_page.set_fixed_width(90)
+        self.tree.append_column(col_page)
 
         # العمود: مقتطف
         col_snip = Gtk.TreeViewColumn("المقتطف")
@@ -129,8 +146,23 @@ class SearchView(Gtk.Box):
         scope_value = self.scope_entry.get_text().strip()
 
         hits = recoll_search(query, scope=scope, scope_value=scope_value, limit=200)
+        books_cache = {}
         for h in hits:
-            self.store.append([h.filepath, h.line_num_1based, h.display, h.snippet])
+            book_dir = os.path.dirname(h.filepath)
+            part_title = "-"
+            page_idx_1based = 1
+            try:
+                if book_dir not in books_cache:
+                    books_cache[book_dir] = Book(book_dir)
+                book = books_cache[book_dir]
+                for part in book.parts:
+                    if part.path == h.filepath:
+                        page_idx_1based = part.page_for_line(h.line_num_1based - 1) + 1
+                        part_title = part.title
+                        break
+            except Exception:
+                pass
+            self.store.append([h.filepath, h.line_num_1based, h.display, h.snippet, part_title, page_idx_1based])
 
         self.lbl_status.set_label(f"النتائج: {len(hits)}")
         self._save_search_state()

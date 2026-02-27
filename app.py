@@ -112,31 +112,15 @@ class MainApp(Gtk.Application):
         self.notebook.append_page(self.quran, Gtk.Label(label="🕌 القرآن"))
 
         # 2. لسان القراءة
-        read_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-
         library_view = LibraryView(self.open_book)
         library_view.set_size_request(320, -1)
-
-        self.lib_revealer = Gtk.Revealer(transition_type=Gtk.RevealerTransitionType.SLIDE_RIGHT, reveal_child=True)
-        self.lib_revealer.set_child(library_view)
 
         self.reader = ReaderView(self.save_position)
         self.reader.set_hexpand(True)
         self.reader.set_vexpand(True)
+        self.reader.set_library_panel(library_view)
 
-        def toggle_library_sidebar():
-            show_library = not self.lib_revealer.get_reveal_child()
-            self.lib_revealer.set_reveal_child(show_library)
-            if show_library:
-                self.reader.hide_sidebar_panel()
-
-        self.reader.connect_library_toggle(toggle_library_sidebar)
-        self.reader.connect_sidebar_panel_requested(lambda _name: self.lib_revealer.set_reveal_child(False))
-
-        read_box.append(self.lib_revealer)
-        read_box.append(self.reader)
-
-        self.notebook.append_page(read_box, Gtk.Label(label="📖 القراءة"))
+        self.notebook.append_page(self.reader, Gtk.Label(label="📖 القراءة"))
 
         # 3. لسان البحث
         self.search = SearchView(self.open_from_search)
@@ -196,7 +180,7 @@ class MainApp(Gtk.Application):
         try:
             self.reader.load_book(book, part_idx, page_idx, highlight_words=words, line_to_scroll=line_idx)
             self.notebook.set_current_page(1)
-            self.lib_revealer.set_reveal_child(False)
+            self.reader.hide_sidebar_panel()
             self.save_position(book, page_idx)
         except Exception as e:
             print(f"فشل في الفتح من البحث: {e}")
@@ -206,7 +190,7 @@ class MainApp(Gtk.Application):
         try:
             self.reader.load_book(book, part_idx, page_idx, highlight_words=query_words)
             self.notebook.set_current_page(1)
-            self.lib_revealer.set_reveal_child(False)
+            self.reader.hide_sidebar_panel()
             self.save_position(book, page_idx)
         except Exception as e:
             print(f"فشل في الفتح من البحث الدلالي: {e}")

@@ -111,20 +111,25 @@ class QuranView(Gtk.Box):
         search_section.append(search_bar_box)
 
         # جدول النتائج
-        self.res_store = Gtk.ListStore(str, int, str, str, str)
+        self.res_store = Gtk.ListStore(int, str, int, str, str, str)
         self.res_view = Gtk.TreeView(model=self.res_store)
         
-        cols_info = [("السورة", 2, 130), ("الآية", 3, 70), ("نص الآية", 4, -1)]
+        cols_info = [("#", 0, 55), ("السورة", 3, 130), ("الآية", 4, 70), ("نص الآية", 5, -1)]
         for title, col_idx, width in cols_info:
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=col_idx)
             if width > 0: column.set_fixed_width(width)
-            if col_idx == 4: 
+            if col_idx == 5: 
                 column.set_expand(True)
                 renderer.set_property("ellipsize", Pango.EllipsizeMode.END)
             self.res_view.append_column(column)
 
         self.res_view.connect("row-activated", self.on_res_click)
+
+        self.lbl_results_status = Gtk.Label(label="")
+        self.lbl_results_status.set_halign(Gtk.Align.END)
+        self.lbl_results_status.add_css_class("dim-label")
+        search_section.append(self.lbl_results_status)
         
         scroll_res = Gtk.ScrolledWindow()
         scroll_res.set_child(self.res_view)
@@ -227,18 +232,23 @@ class QuranView(Gtk.Box):
     def do_search(self, *a):
         q = self.entry.get_text().strip()
         self.res_store.clear()
-        if not q: return
+        self.lbl_results_status.set_label("")
+        if not q:
+            return
         search_q = self.remove_diacritics(q)
+        result_no = 0
         for idx, line in enumerate(self.book.current_part.lines):
             if search_q in self.remove_diacritics(line):
                 sura = self.book.current_part.get_surah_for_line(idx)
                 match = re.search(r'\((\d+)\)$', line)
                 aya_num = match.group(1) if match else "-"
-                self.res_store.append([QURAN_FILE, idx, sura, aya_num, line])
+                result_no += 1
+                self.res_store.append([result_no, QURAN_FILE, idx, sura, aya_num, line])
+        self.lbl_results_status.set_label(f"النتائج: {result_no}")
 
     def on_res_click(self, t, p, c):
         self.highlight_words = self.entry.get_text().split()
-        line_idx = self.res_store[p][1]
+        line_idx = self.res_store[p][2]
         self.book.goto_page(0, self.book.current_part.page_for_line(line_idx))
         self.render()
 
