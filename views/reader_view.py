@@ -24,19 +24,22 @@ class ReaderView(Gtk.Box):
         self.set_hexpand(True)
         self.set_vexpand(True)
         
-        self.overlay = Gtk.Overlay()
-        self.overlay.set_hexpand(True)
-        self.overlay.set_vexpand(True)
-        self.append(self.overlay)
+        self.library_panel_holder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.library_panel_holder.set_size_request(280, -1)
+        self.library_panel_holder.add_css_class("sidebar")
+        self.sidebar_stack = Gtk.Stack()
+        self.sidebar_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
 
-        # 1. القائمة الجانبية الموحدة (الفهرس/البحث داخل الكتاب)
         self.sidebar_revealer = Gtk.Revealer()
         self.sidebar_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_LEFT)
         self.sidebar_revealer.set_reveal_child(False)
         self.sidebar_revealer.set_visible(False)
+        self.sidebar_revealer.set_child(self.sidebar_stack)
 
-        self.sidebar_stack = Gtk.Stack()
-        self.sidebar_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
+        self.sidebar_separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        self.sidebar_separator.set_visible(False)
+
+        # 1. القائمة الجانبية الموحدة (المكتبة/الفهرس/البحث داخل الكتاب)
 
         sidebar_toc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         sidebar_toc_box.set_size_request(280, -1)
@@ -128,25 +131,15 @@ class ReaderView(Gtk.Box):
         result_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         sidebar_search_box.append(result_scroll)
 
+        self.sidebar_stack.add_titled(self.library_panel_holder, "library", "المكتبة")
         self.sidebar_stack.add_titled(sidebar_toc_box, "toc", "فهرس الكتاب")
         self.sidebar_stack.add_titled(sidebar_search_box, "search", "بحث داخل الكتاب")
-        self.sidebar_revealer.set_child(self.sidebar_stack)
-
-        self.sidebar_separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
-        self.sidebar_separator.set_visible(False)
-
-        sidebar_overlay_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        sidebar_overlay_box.set_halign(Gtk.Align.START)
-        sidebar_overlay_box.set_valign(Gtk.Align.FILL)
-        sidebar_overlay_box.append(self.sidebar_separator)
-        sidebar_overlay_box.append(self.sidebar_revealer)
-        self.overlay.add_overlay(sidebar_overlay_box)
 
         # 2. منطقة القراءة الرئيسية
         main_area = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         main_area.set_hexpand(True)
         main_area.set_vexpand(True)
-        self.overlay.set_child(main_area)
+        self.append(main_area)
 
         # الشريط العلوي
         top_bar = Gtk.Box(spacing=6)
@@ -157,9 +150,10 @@ class ReaderView(Gtk.Box):
         top_bar.set_hexpand(True) 
         main_area.append(top_bar)
 
-        self.btn_lib_toggle = Gtk.Button.new_from_icon_name("view-grid-symbolic")
-        self.btn_lib_toggle.set_tooltip_text("إظهار/إخفاء المكتبة")
-        top_bar.append(self.btn_lib_toggle)
+        self.btn_sidebar_library = Gtk.Button.new_from_icon_name("view-grid-symbolic")
+        self.btn_sidebar_library.set_tooltip_text("المكتبة")
+        self.btn_sidebar_library.connect("clicked", lambda x: self.show_sidebar_panel("library"))
+        top_bar.append(self.btn_sidebar_library)
         
         top_bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
 
@@ -196,6 +190,14 @@ class ReaderView(Gtk.Box):
         box_font.append(btn_font_dec)
         top_bar.append(box_font)
 
+        body_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        body_box.set_hexpand(True)
+        body_box.set_vexpand(True)
+        main_area.append(body_box)
+
+        body_box.append(self.sidebar_separator)
+        body_box.append(self.sidebar_revealer)
+
         # وعاء النص
         self.text = Gtk.TextView(editable=False, wrap_mode=Gtk.WrapMode.WORD)
         self.text.add_css_class("reader-text") # ربط بالكلاس في style.css
@@ -210,7 +212,7 @@ class ReaderView(Gtk.Box):
         scroll.set_child(self.text)
         scroll.set_vexpand(True)
         scroll.set_hexpand(True)
-        main_area.append(scroll)
+        body_box.append(scroll)
         
         key_ctrl = Gtk.EventControllerKey()
         key_ctrl.connect("key-pressed", self.on_key_pressed)
@@ -309,8 +311,13 @@ class ReaderView(Gtk.Box):
         dlg.connect("response", lambda d, r: d.destroy())
         dlg.present()
 
-    def connect_library_toggle(self, callback: Callable):
-        self.btn_lib_toggle.connect("clicked", lambda x: callback())
+    def set_library_panel(self, panel: Gtk.Widget):
+        while True:
+            child = self.library_panel_holder.get_first_child()
+            if not child:
+                break
+            self.library_panel_holder.remove(child)
+        self.library_panel_holder.append(panel)
 
     def connect_sidebar_panel_requested(self, callback: Callable[[str], None]):
         self._sidebar_panel_requested_cb = callback
