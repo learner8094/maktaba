@@ -14,7 +14,7 @@ from views.quran_view import QuranView
 from views.semantic_view import SemanticView
 
 from book import Book
-from config import BOOKS_DIR, STYLE_FILE, load_config, save_config
+from config import BOOKS_DIR, STYLE_FILE, load_config, save_config, DEFAULT_CONFIG
 from services.indexing import needs_reindex, run_recollindex
 from services.app_update import AppUpdater
 
@@ -53,6 +53,10 @@ class MainApp(Gtk.Application):
         apply_app_update_action.connect("activate", self.on_apply_app_update)
         self.add_action(apply_app_update_action)
 
+        settings_action = Gio.SimpleAction.new("settings", None)
+        settings_action.connect("activate", self.show_settings_dialog)
+        self.add_action(settings_action)
+
     def load_css(self):
         """تحميل وتطبيق ملف التنسيقات الخارجي"""
         if os.path.exists(STYLE_FILE):
@@ -75,7 +79,7 @@ class MainApp(Gtk.Application):
             return
 
         # تحديث الفهرسة تلقائياً مرة عند فتح البرنامج
-        if needs_reindex():
+        if self.config.get("auto_reindex_on_startup", True) and needs_reindex():
             print("جاري تحديث الفهرسة...")
             ok, err = run_recollindex()
             if ok:
@@ -100,6 +104,7 @@ class MainApp(Gtk.Application):
         menu = Gio.Menu()
         menu.append("فحص نسخة جديدة", "app.check_app_update")
         menu.append("تحديث التطبيق", "app.apply_app_update")
+        menu.append("الإعدادات", "app.settings")
         menu.append("حول البرنامج", "app.about")
         menu.append("خروج", "app.quit")
         menu_button.set_menu_model(menu)
@@ -130,6 +135,7 @@ class MainApp(Gtk.Application):
         self.semantic = SemanticView(self.open_from_semantic)
         self.notebook.append_page(self.semantic, Gtk.Label(label="🧠 البحث الدلالي"))
 
+        self.apply_runtime_settings()
         win.present()
 
     def on_global_key_pressed(self, controller, keyval, keycode, state):
@@ -241,6 +247,108 @@ class MainApp(Gtk.Application):
             self._show_message_dialog("تم فتح صفحة الإصدارات. نزّل آخر نسخة وثبّتها.")
         except Exception:
             self._show_message_dialog(f"افتح يدويًا صفحة الإصدارات: {release_url}", Gtk.MessageType.ERROR)
+
+    def apply_runtime_settings(self):
+        if hasattr(self, "reader") and self.reader:
+            self.reader.font_size = self.config.get("font_size", DEFAULT_CONFIG["font_size"])
+            self.reader.apply_font_size()
+            self.reader.set_sidebar_width(self.config.get("reader_sidebar_width", DEFAULT_CONFIG["reader_sidebar_width"]))
+
+        if hasattr(self, "quran") and self.quran:
+            self.quran.font_size = self.config.get("quran_font_size", DEFAULT_CONFIG["quran_font_size"])
+            self.quran.apply_font_size()
+
+    def show_settings_dialog(self, *_a):
+        dialog = Gtk.Dialog(
+            title="إعدادات البرنامج",
+            transient_for=self.props.active_window,
+            modal=True,
+        )
+        dialog.add_button("إلغاء", Gtk.ResponseType.CANCEL)
+        dialog.add_button("حفظ", Gtk.ResponseType.OK)
+        dialog.set_default_size(500, 380)
+
+        content = dialog.get_content_area()
+        content.set_margin_top(18)
+        content.set_margin_bottom(18)
+        content.set_margin_start(18)
+        content.set_margin_end(18)
+
+        wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        content.append(wrapper)
+
+        title = Gtk.Label(label="تخصيص سريع")
+        title.set_halign(Gtk.Align.START)
+        title.add_css_class("title-3")
+        wrapper.append(title)
+
+        desc = Gtk.Label(label="خيارات أساسية فقط لتحسين تجربة القراءة والبحث")
+        desc.set_halign(Gtk.Align.START)
+        desc.add_css_class("dim-label")
+        wrapper.append(desc)
+
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        card.add_css_class("settings-card")
+        wrapper.append(card)
+
+        row_reader = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        lbl_reader = Gtk.Label(label="حجم خط القارئ")
+        lbl_reader.set_halign(Gtk.Align.START)
+        lbl_reader.set_hexpand(True)
+        scale_reader = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 14, 60, 1)
+        scale_reader.set_value(float(self.config.get("font_size", DEFAULT_CONFIG["font_size"])))
+        scale_reader.set_digits(0)
+        scale_reader.set_hexpand(True)
+        row_reader.append(lbl_reader)
+        row_reader.append(scale_reader)
+        card.append(row_reader)
+
+        row_quran = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        lbl_quran = Gtk.Label(label="حجم خط القرآن")
+        lbl_quran.set_halign(Gtk.Align.START)
+        lbl_quran.set_hexpand(True)
+        scale_quran = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 12, 48, 1)
+        scale_quran.set_value(float(self.config.get("quran_font_size", DEFAULT_CONFIG["quran_font_size"])))
+        scale_quran.set_digits(0)
+        scale_quran.set_hexpand(True)
+        row_quran.append(lbl_quran)
+        row_quran.append(scale_quran)
+        card.append(row_quran)
+
+        row_sidebar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        lbl_sidebar = Gtk.Label(label="عرض القائمة الجانبية")
+        lbl_sidebar.set_halign(Gtk.Align.START)
+        lbl_sidebar.set_hexpand(True)
+        scale_sidebar = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 180, 420, 10)
+        scale_sidebar.set_value(float(self.config.get("reader_sidebar_width", DEFAULT_CONFIG["reader_sidebar_width"])))
+        scale_sidebar.set_digits(0)
+        scale_sidebar.set_hexpand(True)
+        row_sidebar.append(lbl_sidebar)
+        row_sidebar.append(scale_sidebar)
+        card.append(row_sidebar)
+
+        row_reindex = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        lbl_reindex = Gtk.Label(label="تحديث الفهرسة تلقائياً عند التشغيل")
+        lbl_reindex.set_halign(Gtk.Align.START)
+        lbl_reindex.set_hexpand(True)
+        switch_reindex = Gtk.Switch()
+        switch_reindex.set_active(bool(self.config.get("auto_reindex_on_startup", True)))
+        row_reindex.append(lbl_reindex)
+        row_reindex.append(switch_reindex)
+        card.append(row_reindex)
+
+        def on_response(dlg, resp):
+            if resp == Gtk.ResponseType.OK:
+                self.config["font_size"] = int(scale_reader.get_value())
+                self.config["quran_font_size"] = int(scale_quran.get_value())
+                self.config["reader_sidebar_width"] = int(scale_sidebar.get_value())
+                self.config["auto_reindex_on_startup"] = bool(switch_reindex.get_active())
+                save_config(self.config)
+                self.apply_runtime_settings()
+            dlg.destroy()
+
+        dialog.connect("response", on_response)
+        dialog.present()
 
     def show_about(self, *a):
         dlg = Gtk.AboutDialog(
