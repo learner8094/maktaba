@@ -135,13 +135,11 @@ class ReaderView(Gtk.Box):
         self.sidebar_separator.set_visible(False)
 
         sidebar_overlay_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        sidebar_overlay_box.set_halign(Gtk.Align.END)
+        sidebar_overlay_box.set_halign(Gtk.Align.START)
         sidebar_overlay_box.set_valign(Gtk.Align.FILL)
         sidebar_overlay_box.append(self.sidebar_separator)
         sidebar_overlay_box.append(self.sidebar_revealer)
         self.overlay.add_overlay(sidebar_overlay_box)
-        self.overlay.set_overlay_pass_through(sidebar_overlay_box, True)
-        self.sidebar_overlay_box = sidebar_overlay_box
 
         # 2. منطقة القراءة الرئيسية
         main_area = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -150,41 +148,34 @@ class ReaderView(Gtk.Box):
         self.overlay.set_child(main_area)
 
         # الشريط العلوي
-        top_bar = Gtk.Box(spacing=8)
-        top_bar.add_css_class("reader-top-bar")
+        top_bar = Gtk.Box(spacing=6)
         top_bar.set_margin_start(10)
         top_bar.set_margin_end(10)
         top_bar.set_margin_top(8)
         top_bar.set_margin_bottom(8)
-        top_bar.set_hexpand(True)
+        top_bar.set_hexpand(True) 
         main_area.append(top_bar)
-
-        # مجموعة أيقونات القراءة المثبتة في جهة اليمين
-        right_icons = Gtk.Box(spacing=4)
-        right_icons.add_css_class("linked")
-        right_icons.add_css_class("reader-right-icons")
 
         self.btn_lib_toggle = Gtk.Button.new_from_icon_name("view-grid-symbolic")
         self.btn_lib_toggle.set_tooltip_text("إظهار/إخفاء المكتبة")
-        right_icons.append(self.btn_lib_toggle)
+        top_bar.append(self.btn_lib_toggle)
+        
+        top_bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
 
         self.btn_sidebar_toc = Gtk.Button.new_from_icon_name("view-list-symbolic")
         self.btn_sidebar_toc.set_tooltip_text("فهرس الكتاب")
         self.btn_sidebar_toc.connect("clicked", lambda x: self.show_sidebar_panel("toc"))
-        right_icons.append(self.btn_sidebar_toc)
+        top_bar.append(self.btn_sidebar_toc)
 
         self.btn_sidebar_search = Gtk.Button.new_from_icon_name("system-search-symbolic")
         self.btn_sidebar_search.set_tooltip_text("بحث داخل الكتاب")
         self.btn_sidebar_search.connect("clicked", lambda x: self.show_sidebar_panel("search"))
-        right_icons.append(self.btn_sidebar_search)
-
-        top_bar.append(right_icons)
+        top_bar.append(self.btn_sidebar_search)
 
         self.lbl_book_title = Gtk.Label(label="")
-        self.lbl_book_title.set_hexpand(True)
+        self.lbl_book_title.set_hexpand(True) 
         self.lbl_book_title.add_css_class("title-4")
         self.lbl_book_title.set_ellipsize(Pango.EllipsizeMode.END)
-        self.lbl_book_title.set_xalign(1)
         top_bar.append(self.lbl_book_title)
 
         box_font = Gtk.Box()
@@ -420,7 +411,6 @@ class ReaderView(Gtk.Box):
         self.sidebar_revealer.set_reveal_child(False)
         self.sidebar_revealer.set_visible(False)
         self.sidebar_separator.set_visible(False)
-        self.overlay.set_overlay_pass_through(self.sidebar_overlay_box, True)
 
     def show_sidebar_panel(self, panel_name: str):
         current_visible = self.sidebar_revealer.get_reveal_child()
@@ -430,14 +420,12 @@ class ReaderView(Gtk.Box):
             self.sidebar_revealer.set_reveal_child(False)
             self.sidebar_revealer.set_visible(False)
             self.sidebar_separator.set_visible(False)
-            self.overlay.set_overlay_pass_through(self.sidebar_overlay_box, True)
             return
 
         self.sidebar_stack.set_visible_child_name(panel_name)
         self.sidebar_revealer.set_visible(True)
         self.sidebar_revealer.set_reveal_child(True)
         self.sidebar_separator.set_visible(True)
-        self.overlay.set_overlay_pass_through(self.sidebar_overlay_box, False)
         if self._sidebar_panel_requested_cb:
             self._sidebar_panel_requested_cb(panel_name)
 
