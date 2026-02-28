@@ -38,8 +38,8 @@ class ReaderView(Gtk.Box):
 
         self.sidebar_revealer = Gtk.Revealer()
         self.sidebar_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_LEFT)
-        self.sidebar_revealer.set_reveal_child(False)
-        self.sidebar_revealer.set_visible(False)
+        self.sidebar_revealer.set_reveal_child(True)
+        self.sidebar_revealer.set_visible(True)
         self.sidebar_revealer.set_child(self.sidebar_stack)
 
         # 1. القائمة الجانبية الموحدة (المكتبة/الفهرس/البحث داخل الكتاب)
@@ -137,6 +137,7 @@ class ReaderView(Gtk.Box):
         self.sidebar_stack.add_titled(self.library_panel_holder, "library", "المكتبة")
         self.sidebar_stack.add_titled(sidebar_toc_box, "toc", "فهرس الكتاب")
         self.sidebar_stack.add_titled(sidebar_search_box, "search", "بحث داخل الكتاب")
+        self.sidebar_stack.set_visible_child_name("library")
 
         # 2. منطقة القراءة الرئيسية
         main_area = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

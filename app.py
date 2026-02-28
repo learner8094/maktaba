@@ -36,6 +36,7 @@ class MainApp(Gtk.Application):
 
         # تحميل ملف الستايل CSS
         self.load_css()
+        self.apply_theme_mode()
 
         quit_action = Gio.SimpleAction.new("quit", None)
         quit_action.connect("activate", lambda a, p: self.quit())
@@ -88,6 +89,7 @@ class MainApp(Gtk.Application):
                 print(f"فشل في إعادة الفهرسة: {err}")
 
         win = Gtk.ApplicationWindow(application=self)
+        self.win = win
         win.set_title("مكتبة - الباحث في المكتبة الرقمية")
         win.set_default_size(1500, 900)
 
@@ -136,6 +138,7 @@ class MainApp(Gtk.Application):
         self.notebook.append_page(self.semantic, Gtk.Label(label="🧠 البحث الدلالي"))
 
         self.apply_runtime_settings()
+        self.apply_theme_mode()
         win.present()
 
     def on_global_key_pressed(self, controller, keyval, keycode, state):
@@ -248,6 +251,22 @@ class MainApp(Gtk.Application):
         except Exception:
             self._show_message_dialog(f"افتح يدويًا صفحة الإصدارات: {release_url}", Gtk.MessageType.ERROR)
 
+    def apply_theme_mode(self):
+        settings = Gtk.Settings.get_default()
+        if not settings:
+            return
+
+        mode = self.config.get("theme_mode", DEFAULT_CONFIG["theme_mode"])
+        settings.set_property("gtk-application-prefer-dark-theme", mode in {"dark", "dim"})
+
+        win = getattr(self, "win", None)
+        if not win:
+            return
+
+        win.remove_css_class("theme-dim")
+        if mode == "dim":
+            win.add_css_class("theme-dim")
+
     def apply_runtime_settings(self):
         if hasattr(self, "reader") and self.reader:
             self.reader.font_size = self.config.get("font_size", DEFAULT_CONFIG["font_size"])
@@ -257,6 +276,9 @@ class MainApp(Gtk.Application):
         if hasattr(self, "quran") and self.quran:
             self.quran.font_size = self.config.get("quran_font_size", DEFAULT_CONFIG["quran_font_size"])
             self.quran.apply_font_size()
+            self.quran.set_page_words(self.config.get("quran_page_words", DEFAULT_CONFIG["quran_page_words"]))
+
+        self.apply_theme_mode()
 
     def show_settings_dialog(self, *_a):
         dialog = Gtk.Dialog(
@@ -266,7 +288,7 @@ class MainApp(Gtk.Application):
         )
         dialog.add_button("إلغاء", Gtk.ResponseType.CANCEL)
         dialog.add_button("حفظ", Gtk.ResponseType.OK)
-        dialog.set_default_size(500, 380)
+        dialog.set_default_size(560, 460)
 
         content = dialog.get_content_area()
         content.set_margin_top(18)
@@ -315,6 +337,18 @@ class MainApp(Gtk.Application):
         row_quran.append(scale_quran)
         card.append(row_quran)
 
+        row_quran_lines = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        lbl_quran_lines = Gtk.Label(label="عدد كلمات صفحة القرآن")
+        lbl_quran_lines.set_halign(Gtk.Align.START)
+        lbl_quran_lines.set_hexpand(True)
+        scale_quran_lines = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 40, 200, 5)
+        scale_quran_lines.set_value(float(self.config.get("quran_page_words", DEFAULT_CONFIG["quran_page_words"])))
+        scale_quran_lines.set_digits(0)
+        scale_quran_lines.set_hexpand(True)
+        row_quran_lines.append(lbl_quran_lines)
+        row_quran_lines.append(scale_quran_lines)
+        card.append(row_quran_lines)
+
         row_sidebar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         lbl_sidebar = Gtk.Label(label="عرض القائمة الجانبية")
         lbl_sidebar.set_halign(Gtk.Align.START)
@@ -326,6 +360,19 @@ class MainApp(Gtk.Application):
         row_sidebar.append(lbl_sidebar)
         row_sidebar.append(scale_sidebar)
         card.append(row_sidebar)
+
+        row_theme = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        lbl_theme = Gtk.Label(label="مظهر البرنامج")
+        lbl_theme.set_halign(Gtk.Align.START)
+        lbl_theme.set_hexpand(True)
+        combo_theme = Gtk.ComboBoxText()
+        combo_theme.append("light", "وضع فاتح")
+        combo_theme.append("dark", "وضع داكن")
+        combo_theme.append("dim", "وضع مظلم")
+        combo_theme.set_active_id(self.config.get("theme_mode", DEFAULT_CONFIG["theme_mode"]))
+        row_theme.append(lbl_theme)
+        row_theme.append(combo_theme)
+        card.append(row_theme)
 
         row_reindex = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         lbl_reindex = Gtk.Label(label="تحديث الفهرسة تلقائياً عند التشغيل")
@@ -341,7 +388,9 @@ class MainApp(Gtk.Application):
             if resp == Gtk.ResponseType.OK:
                 self.config["font_size"] = int(scale_reader.get_value())
                 self.config["quran_font_size"] = int(scale_quran.get_value())
+                self.config["quran_page_words"] = int(scale_quran_lines.get_value())
                 self.config["reader_sidebar_width"] = int(scale_sidebar.get_value())
+                self.config["theme_mode"] = combo_theme.get_active_id() or DEFAULT_CONFIG["theme_mode"]
                 self.config["auto_reindex_on_startup"] = bool(switch_reindex.get_active())
                 save_config(self.config)
                 self.apply_runtime_settings()

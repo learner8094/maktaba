@@ -83,3 +83,18 @@ textview text selection {
     border-radius: 12px;
     background-color: alpha(@window_fg_color, 0.03);
 }
+
+/* منزلقات الإعدادات: لون أوضح في الوضع الليلي */
+scale highlight {
+    background-color: #3b82f6;
+}
+
+window.theme-dim {
+    background-color: #111418;
+    color: #e6e7e8;
+}
+
+window.theme-dim scale highlight {
+    background-color: #5ec4ff;
+}
+
