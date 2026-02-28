@@ -218,13 +218,29 @@ class QuranView(Gtk.Box):
         CONFIG["quran_font_size"] = self.font_size
         save_config(CONFIG)
 
+    def set_page_words(self, words_per_page: int):
+        try:
+            words_per_page = int(words_per_page)
+        except (TypeError, ValueError):
+            return
+
+        clamped = max(40, min(200, words_per_page))
+        CONFIG["quran_page_words"] = clamped
+        if not self.book:
+            return
+
+        current_line = self.book.current_part.get_start_line_for_page(self.book.current_page_index)
+        self.book.current_part.paginate()
+        self.book.current_page_index = self.book.current_part.page_for_line(current_line)
+        self.render(self.highlight_words)
+
     def load_book(self):
         if os.path.exists(QURAN_FILE):
             self.book = Book(QURAN_FILE)
             self.surah_store.clear()
             for name, line, level in self.book.current_part.sections:
                 self.surah_store.append([f"سورة {name}", line])
-            self.render()
+            self.set_page_words(CONFIG.get("quran_page_words", 80))
 
     def remove_diacritics(self, text: str) -> str:
         return ''.join(c for c in text if c not in "ًٌٍَُِّْ")

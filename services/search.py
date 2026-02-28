@@ -4,6 +4,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from typing import List, Optional
+from urllib.parse import unquote
 
 from config import RECOLL_DIR, BOOKS_DIR
 
@@ -29,14 +30,35 @@ def _build_dir_filter(scope: str, scope_value: str) -> str:
                     return f'dir:"{d}" AND '
     return ""
 
-def recoll_search(query: str, scope: str = "كل الكتب", scope_value: str = "", limit: int = 200) -> List[SearchHit]:
+def _normalize_query(query: str, match_mode: str) -> str:
+    terms = [w for w in query.split() if w.strip()]
+    if not terms:
+        return ""
+
+    if len(terms) == 1:
+        return terms[0]
+
+    op = "OR" if match_mode == "or" else "AND"
+    return f" {op} ".join(terms)
+
+def recoll_search(
+    query: str,
+    scope: str = "كل الكتب",
+    scope_value: str = "",
+    limit: int = 200,
+    match_mode: str = "and",
+) -> List[SearchHit]:
     query = (query or "").strip()
     if not query:
         return []
 
+    normalized_query = _normalize_query(query, match_mode)
+    if not normalized_query:
+        return []
+
     cmd = ["recollq", "-c", RECOLL_DIR, "-A", "-g", str(limit)]
     dir_filter = _build_dir_filter(scope, scope_value)
-    cmd.append(dir_filter + query)
+    cmd.append(dir_filter + normalized_query)
 
     try:
         out = subprocess.run(cmd, capture_output=True, text=True).stdout.splitlines()
@@ -52,7 +74,7 @@ def recoll_search(query: str, scope: str = "كل الكتب", scope_value: str =
         if "[file://" in line:
             m = re.search(r'\[(file://[^\]]+)\]', line)
             if m:
-                current_file = m.group(1).replace("file://", "")
+                current_file = unquote(m.group(1).replace("file://", ""))
             continue
         if line.strip() == "SNIPPETS":
             in_snip = True

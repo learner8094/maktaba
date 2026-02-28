@@ -15,8 +15,10 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 DEFAULT_CONFIG = {
     "font_size": 22,
     "quran_font_size": 22,
+    "quran_page_words": QURAN_PAGE_WORDS,
     "reader_sidebar_width": 240,
     "auto_reindex_on_startup": True,
+    "theme_mode": "dark",
 }
 
 
@@ -27,6 +29,7 @@ def _sanitize_config(cfg: dict) -> dict:
     int_ranges = {
         "font_size": (14, 60),
         "quran_font_size": (12, 48),
+        "quran_page_words": (40, 200),
         "reader_sidebar_width": (180, 420),
     }
     for key, (min_v, max_v) in int_ranges.items():
@@ -37,6 +40,8 @@ def _sanitize_config(cfg: dict) -> dict:
         merged[key] = max(min_v, min(max_v, merged[key]))
 
     merged["auto_reindex_on_startup"] = bool(merged.get("auto_reindex_on_startup", True))
+    if merged.get("theme_mode") not in {"light", "dark", "dim"}:
+        merged["theme_mode"] = DEFAULT_CONFIG["theme_mode"]
     return merged
 
 def load_config() -> dict:

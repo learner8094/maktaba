@@ -3,7 +3,16 @@ import os
 import re
 import json
 from html.parser import HTMLParser
-from config import PAGE_LINES, QURAN_PAGE_WORDS
+from config import PAGE_LINES, QURAN_PAGE_WORDS, load_config
+
+def _get_quran_page_words() -> int:
+    cfg = load_config()
+    raw = cfg.get("quran_page_words", QURAN_PAGE_WORDS)
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        value = QURAN_PAGE_WORDS
+    return max(40, min(200, value))
 
 class HTMLExtractor(HTMLParser):
     """يستخرج النصوص والفصول من HTML مع دعم الهيكلية والقوائم"""
@@ -113,9 +122,7 @@ class BookPart:
                     line_idx = len(self.lines)
                     # القرآن مستوى واحد
                     self.sections.append((clean_name, line_idx, 1))
-                    self.lines.append("\n") 
                     self.lines.append(f"سورة {clean_name}")
-                    self.lines.append("\n")
                     ayas = re.findall(r'<span class="aya" data-aya="(\d+)">(.*?)</span>', content, re.DOTALL)
                     for aya_num, text in ayas:
                         self.lines.append(f"{text.strip()} ({aya_num})")
@@ -134,6 +141,7 @@ class BookPart:
     def paginate(self):
         self.pages = []
         self.page_first_line_idxs = []
+        self.line_to_page_index = {}
         
         if not self.is_quran:
             if self.page_break_line_idxs:
@@ -154,7 +162,6 @@ class BookPart:
             # تقسيم النص إلى صفحات ثابتة بعدد أسطر محدد (PAGE_LINES)
             # مع إنشاء خريطة line_to_page_index لتمكين الانتقال الدقيق لعناوين الفصول.
             joiner = "\n"
-            self.line_to_page_index = {}
             for page_idx, i in enumerate(range(0, len(self.lines), PAGE_LINES)):
                 self.page_first_line_idxs.append(i)
                 page_content = joiner.join(self.lines[i:i + PAGE_LINES])
@@ -169,6 +176,8 @@ class BookPart:
         current_line_idx = 0
         page_start_idx = 0
 
+        quran_page_words = _get_quran_page_words()
+
         for line_idx, line in enumerate(self.lines):
             if not current_page:
                 page_start_idx = line_idx
@@ -178,7 +187,7 @@ class BookPart:
             else:
                 words = line.split()
                 word_count = len(words)
-                if current_word_count + word_count > QURAN_PAGE_WORDS and current_page:
+                if current_word_count + word_count > quran_page_words and current_page:
                     self.pages.append(" ".join(current_page))
                     self.page_first_line_idxs.append(page_start_idx)
                     

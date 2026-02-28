@@ -1,5 +1,6 @@
 # views/search_view.py
 import os
+import re
 import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Pango, Gdk
@@ -28,6 +29,12 @@ class SearchView(Gtk.Box):
         self.entry.set_hexpand(True)
         self.entry.connect("activate", self.perform_search)
         bar.append(self.entry)
+
+        self.match_combo = Gtk.ComboBoxText()
+        self.match_combo.append("and", "AND")
+        self.match_combo.append("or", "OR")
+        self.match_combo.set_active_id(self.cfg["search"].get("match_mode", "and"))
+        bar.append(self.match_combo)
 
         self.scope_combo = Gtk.ComboBoxText()
         self.scope_combo.append_text("كل الكتب")
@@ -133,6 +140,7 @@ class SearchView(Gtk.Box):
         self.cfg["search"]["last_query"] = self.entry.get_text().strip()
         self.cfg["search"]["last_scope"] = self.scope_combo.get_active_text()
         self.cfg["search"]["last_scope_value"] = self.scope_entry.get_text().strip()
+        self.cfg["search"]["match_mode"] = self.match_combo.get_active_id() or "and"
         save_config(self.cfg)
 
     def perform_search(self, *args):
@@ -145,7 +153,9 @@ class SearchView(Gtk.Box):
         scope = self.scope_combo.get_active_text()
         scope_value = self.scope_entry.get_text().strip()
 
-        hits = recoll_search(query, scope=scope, scope_value=scope_value, limit=200)
+        match_mode = self.match_combo.get_active_id() or "and"
+
+        hits = recoll_search(query, scope=scope, scope_value=scope_value, limit=200, match_mode=match_mode)
         books_cache = {}
         for h in hits:
             book_dir = os.path.dirname(h.filepath)
@@ -155,10 +165,12 @@ class SearchView(Gtk.Box):
                 if book_dir not in books_cache:
                     books_cache[book_dir] = Book(book_dir)
                 book = books_cache[book_dir]
+                hit_path = os.path.normpath(os.path.realpath(h.filepath))
                 for part in book.parts:
-                    if part.path == h.filepath:
+                    part_path = os.path.normpath(os.path.realpath(part.path))
+                    if part_path == hit_path:
                         page_idx_1based = part.page_for_line(h.line_num_1based - 1) + 1
-                        part_title = part.title
+                        part_title = part.title or os.path.basename(part.path)
                         break
             except Exception:
                 pass
@@ -187,9 +199,10 @@ class SearchView(Gtk.Box):
         book_dir = os.path.dirname(filepath)
         try:
             book = Book(book_dir)
-            part_idx = next(i for i, p in enumerate(book.parts) if p.path == filepath)
+            target_path = os.path.normpath(os.path.realpath(filepath))
+            part_idx = next(i for i, p in enumerate(book.parts) if os.path.normpath(os.path.realpath(p.path)) == target_path)
             page_idx = book.parts[part_idx].page_for_line(line_num - 1)
-            words = self.entry.get_text().strip().split()
+            words = [w for w in re.split(r"\s+", self.entry.get_text().strip()) if w and w.lower() not in {"and", "or"}]
             self.open_cb(book, part_idx, page_idx, words, line_num - 1)
         except Exception as e:
             print(f"فشل في فتح النتيجة: {e}")
