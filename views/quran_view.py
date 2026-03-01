@@ -166,23 +166,28 @@ class QuranView(Gtk.Box):
         if not page_lines:
             return self.book.current_page
 
-        formatted_lines = []
+        blocks: List[str] = []
+        current_verses: List[str] = []
+
         for line in page_lines:
             clean_line = (line or "").strip()
             if not clean_line:
                 continue
 
             if clean_line.startswith("سورة "):
-                # اجعل عنوان السورة في سطر مستقل مع فراغ بعده دائماً
-                # وفراغ قبله لكل السور ما عدا الفاتحة
-                if formatted_lines and clean_line != "سورة الفاتحة":
-                    formatted_lines.append("")
-                formatted_lines.append(clean_line)
-                formatted_lines.append("")
+                if current_verses:
+                    blocks.append(" ".join(current_verses))
+                    current_verses = []
+                blocks.append(clean_line)
             else:
-                formatted_lines.append(clean_line)
+                current_verses.append(clean_line)
 
-        return "\n".join(formatted_lines).strip()
+        if current_verses:
+            blocks.append(" ".join(current_verses))
+
+        # نستخدم سطرًا فارغًا واحدًا فقط بين عنوان السورة ونص الآيات
+        # وبذلك تبقى الآيات متتابعة في سطر واحد بدل فصل كل آية بسطر.
+        return "\n\n".join(blocks).strip()
 
     def render(self, words: Optional[List[str]] = None):
         if words:
