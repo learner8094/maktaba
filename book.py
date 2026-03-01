@@ -211,6 +211,13 @@ class BookPart:
     def page_for_line(self, line):
         return self.line_to_page_index.get(line, 0)
         
+    def get_page_lines(self, page_idx):
+        if page_idx < 0 or page_idx >= len(self.page_first_line_idxs):
+            return []
+        start = self.page_first_line_idxs[page_idx]
+        end = self.page_first_line_idxs[page_idx + 1] if page_idx + 1 < len(self.page_first_line_idxs) else len(self.lines)
+        return self.lines[start:end]
+
     def get_start_line_for_page(self, page_idx):
         if 0 <= page_idx < len(self.page_first_line_idxs):
             return self.page_first_line_idxs[page_idx]

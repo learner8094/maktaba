@@ -98,3 +98,13 @@ window.theme-dim scale highlight {
     background-color: #5ec4ff;
 }
 
+
+window.theme-light {
+    background-color: #ffffff;
+    color: #1f2937;
+}
+
+window.theme-dark {
+    background-color: #0f1115;
+    color: #e5e7eb;
+}

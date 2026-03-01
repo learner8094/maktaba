@@ -257,14 +257,25 @@ class MainApp(Gtk.Application):
             return
 
         mode = self.config.get("theme_mode", DEFAULT_CONFIG["theme_mode"])
-        settings.set_property("gtk-application-prefer-dark-theme", mode in {"dark", "dim"})
+
+        # system = اترك GTK يتبع إعدادات النظام
+        if mode == "system":
+            settings.reset_property("gtk-application-prefer-dark-theme")
+        else:
+            settings.set_property("gtk-application-prefer-dark-theme", mode in {"dark", "dim"})
 
         win = getattr(self, "win", None)
         if not win:
             return
 
-        win.remove_css_class("theme-dim")
-        if mode == "dim":
+        for cls in ("theme-light", "theme-dark", "theme-dim"):
+            win.remove_css_class(cls)
+
+        if mode == "light":
+            win.add_css_class("theme-light")
+        elif mode == "dark":
+            win.add_css_class("theme-dark")
+        elif mode == "dim":
             win.add_css_class("theme-dim")
 
     def apply_runtime_settings(self):
@@ -313,6 +324,18 @@ class MainApp(Gtk.Application):
         card.add_css_class("settings-card")
         wrapper.append(card)
 
+        def add_scale_value(scale: Gtk.Scale, initial_value: float) -> Gtk.Label:
+            value_label = Gtk.Label(label=str(int(initial_value)))
+            value_label.set_width_chars(4)
+            value_label.set_xalign(0.5)
+            value_label.add_css_class("dim-label")
+
+            def on_value_changed(s: Gtk.Scale):
+                value_label.set_label(str(int(round(s.get_value()))))
+
+            scale.connect("value-changed", on_value_changed)
+            return value_label
+
         row_reader = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         lbl_reader = Gtk.Label(label="حجم خط القارئ")
         lbl_reader.set_halign(Gtk.Align.START)
@@ -321,8 +344,10 @@ class MainApp(Gtk.Application):
         scale_reader.set_value(float(self.config.get("font_size", DEFAULT_CONFIG["font_size"])))
         scale_reader.set_digits(0)
         scale_reader.set_hexpand(True)
+        lbl_reader_value = add_scale_value(scale_reader, scale_reader.get_value())
         row_reader.append(lbl_reader)
         row_reader.append(scale_reader)
+        row_reader.append(lbl_reader_value)
         card.append(row_reader)
 
         row_quran = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -333,8 +358,10 @@ class MainApp(Gtk.Application):
         scale_quran.set_value(float(self.config.get("quran_font_size", DEFAULT_CONFIG["quran_font_size"])))
         scale_quran.set_digits(0)
         scale_quran.set_hexpand(True)
+        lbl_quran_value = add_scale_value(scale_quran, scale_quran.get_value())
         row_quran.append(lbl_quran)
         row_quran.append(scale_quran)
+        row_quran.append(lbl_quran_value)
         card.append(row_quran)
 
         row_quran_lines = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -345,8 +372,10 @@ class MainApp(Gtk.Application):
         scale_quran_lines.set_value(float(self.config.get("quran_page_words", DEFAULT_CONFIG["quran_page_words"])))
         scale_quran_lines.set_digits(0)
         scale_quran_lines.set_hexpand(True)
+        lbl_quran_lines_value = add_scale_value(scale_quran_lines, scale_quran_lines.get_value())
         row_quran_lines.append(lbl_quran_lines)
         row_quran_lines.append(scale_quran_lines)
+        row_quran_lines.append(lbl_quran_lines_value)
         card.append(row_quran_lines)
 
         row_sidebar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -357,8 +386,10 @@ class MainApp(Gtk.Application):
         scale_sidebar.set_value(float(self.config.get("reader_sidebar_width", DEFAULT_CONFIG["reader_sidebar_width"])))
         scale_sidebar.set_digits(0)
         scale_sidebar.set_hexpand(True)
+        lbl_sidebar_value = add_scale_value(scale_sidebar, scale_sidebar.get_value())
         row_sidebar.append(lbl_sidebar)
         row_sidebar.append(scale_sidebar)
+        row_sidebar.append(lbl_sidebar_value)
         card.append(row_sidebar)
 
         row_theme = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -366,10 +397,13 @@ class MainApp(Gtk.Application):
         lbl_theme.set_halign(Gtk.Align.START)
         lbl_theme.set_hexpand(True)
         combo_theme = Gtk.ComboBoxText()
+        combo_theme.append("system", "وضع النظام")
         combo_theme.append("light", "وضع فاتح")
         combo_theme.append("dark", "وضع داكن")
         combo_theme.append("dim", "وضع مظلم")
-        combo_theme.set_active_id(self.config.get("theme_mode", DEFAULT_CONFIG["theme_mode"]))
+        theme_mode = self.config.get("theme_mode", DEFAULT_CONFIG["theme_mode"])
+        if not combo_theme.set_active_id(theme_mode):
+            combo_theme.set_active_id(DEFAULT_CONFIG["theme_mode"])
         row_theme.append(lbl_theme)
         row_theme.append(combo_theme)
         card.append(row_theme)
