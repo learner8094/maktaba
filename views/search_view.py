@@ -33,6 +33,7 @@ class SearchView(Gtk.Box):
         self.match_combo = Gtk.ComboBoxText()
         self.match_combo.append("and", "AND")
         self.match_combo.append("or", "OR")
+        self.match_combo.set_tooltip_text("AND: كل الكلمات، OR: أي كلمة")
         self.match_combo.set_active_id(self.cfg["search"].get("match_mode", "and"))
         bar.append(self.match_combo)
 
@@ -168,10 +169,25 @@ class SearchView(Gtk.Box):
                 hit_path = os.path.normpath(os.path.realpath(h.filepath))
                 for part in book.parts:
                     part_path = os.path.normpath(os.path.realpath(part.path))
-                    if part_path == hit_path:
-                        page_idx_1based = part.page_for_line(h.line_num_1based - 1) + 1
-                        part_title = part.title or os.path.basename(part.path)
-                        break
+                    if part_path != hit_path:
+                        continue
+
+                    target_line = max(0, h.line_num_1based - 1)
+                    page_idx_1based = part.page_for_line(target_line) + 1
+
+                    # استخرج عنوان الفصل الأقرب قبل السطر المطابق
+                    nearest_section = None
+                    for sec_title, sec_line, _sec_level in part.sections:
+                        if sec_line <= target_line:
+                            nearest_section = sec_title
+                        else:
+                            break
+
+                    if nearest_section:
+                        part_title = nearest_section
+                    else:
+                        part_title = os.path.splitext(os.path.basename(part.path))[0]
+                    break
             except Exception:
                 pass
             self.store.append([h.filepath, h.line_num_1based, h.display, h.snippet, part_title, page_idx_1based])

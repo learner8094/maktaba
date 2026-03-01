@@ -18,7 +18,7 @@ DEFAULT_CONFIG = {
     "quran_page_words": QURAN_PAGE_WORDS,
     "reader_sidebar_width": 240,
     "auto_reindex_on_startup": True,
-    "theme_mode": "dark",
+    "theme_mode": "system",
 }
 
 
@@ -40,7 +40,7 @@ def _sanitize_config(cfg: dict) -> dict:
         merged[key] = max(min_v, min(max_v, merged[key]))
 
     merged["auto_reindex_on_startup"] = bool(merged.get("auto_reindex_on_startup", True))
-    if merged.get("theme_mode") not in {"light", "dark", "dim"}:
+    if merged.get("theme_mode") not in {"light", "dark", "dim", "system"}:
         merged["theme_mode"] = DEFAULT_CONFIG["theme_mode"]
     return merged
 

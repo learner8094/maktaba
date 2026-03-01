@@ -160,10 +160,36 @@ class QuranView(Gtk.Box):
         css = f".quran-text {{ font-size: {self.font_size}pt; }}"
         self.font_provider.load_from_data(css.encode())
 
+    def _format_page_text(self) -> str:
+        part = self.book.current_part
+        page_lines = part.get_page_lines(self.book.current_page_index)
+        if not page_lines:
+            return self.book.current_page
+
+        formatted_lines = []
+        for line in page_lines:
+            clean_line = (line or "").strip()
+            if not clean_line:
+                continue
+
+            if clean_line.startswith("سورة "):
+                # اجعل عنوان السورة في سطر مستقل مع فراغ بعده دائماً
+                # وفراغ قبله لكل السور ما عدا الفاتحة
+                if formatted_lines and clean_line != "سورة الفاتحة":
+                    formatted_lines.append("")
+                formatted_lines.append(clean_line)
+                formatted_lines.append("")
+            else:
+                formatted_lines.append(clean_line)
+
+        return "\n".join(formatted_lines).strip()
+
     def render(self, words: Optional[List[str]] = None):
-        if words: self.highlight_words = words
-        self.buffer.set_text(self.book.current_page)
-        
+        if words:
+            self.highlight_words = words
+        display_text = self._format_page_text()
+        self.buffer.set_text(display_text)
+
         txt = self.buffer.get_text(self.buffer.get_start_iter(), self.buffer.get_end_iter(), False)
         # البحث عن عناوين السور وتغليظها
         for name, _, _ in self.book.current_part.sections:
