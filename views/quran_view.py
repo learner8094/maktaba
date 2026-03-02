@@ -187,7 +187,7 @@ class QuranView(Gtk.Box):
 
         # نستخدم سطرًا فارغًا واحدًا فقط بين عنوان السورة ونص الآيات
         # وبذلك تبقى الآيات متتابعة في سطر واحد بدل فصل كل آية بسطر.
-        return "\n\n".join(blocks).strip()
+        return "\n".join(blocks).strip()
 
     def render(self, words: Optional[List[str]] = None):
         if words:
