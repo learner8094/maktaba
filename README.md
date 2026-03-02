@@ -123,6 +123,13 @@ books/
 }
 ```
 
+- لتحويل الكتب من صيغة `bok` إلى `html` متوافق مع هذا البرنامج، يمكن استخدام أداة [`boktohtml`](https://github.com/learner8094/boktohtml).
+- يتعرّف البرنامج على نهاية الصفحة الجديدة داخل ملف HTML عبر الوسم التالي:
+
+```html
+<span class="page-break-marker" data-page-break="2" hidden aria-hidden="true"></span>
+```
+
 ## 🔄 تحديث المكتبة والتطبيق
 
 - من لسان **📖 القراءة** اضغط زر **تحديث الكتب** لجلب الكتب الجديدة فقط.
