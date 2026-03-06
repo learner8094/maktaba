@@ -143,6 +143,16 @@ class MainApp(Gtk.Application):
 
     def on_global_key_pressed(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_f and (state & Gdk.ModifierType.CONTROL_MASK):
+            current_tab = self.notebook.get_current_page()
+
+            if current_tab == 0 and hasattr(self, "quran") and self.quran:
+                self.quran.focus_search_entry()
+                return True
+
+            if current_tab == 2 and hasattr(self, "search") and self.search:
+                self.search.focus_search_entry()
+                return True
+
             if hasattr(self, "search") and self.search:
                 self.notebook.set_current_page(2)
                 self.search.focus_search_entry()

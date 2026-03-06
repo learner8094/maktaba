@@ -276,6 +276,10 @@ class QuranView(Gtk.Box):
     def remove_diacritics(self, text: str) -> str:
         return ''.join(c for c in text if c not in "ًٌٍَُِّْ")
 
+    def focus_search_entry(self):
+        self.entry.grab_focus()
+        self.entry.select_region(0, -1)
+
     def do_search(self, *a):
         q = self.entry.get_text().strip()
         self.res_store.clear()
