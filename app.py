@@ -142,6 +142,12 @@ class MainApp(Gtk.Application):
         win.present()
 
     def on_global_key_pressed(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_f and (state & Gdk.ModifierType.CONTROL_MASK):
+            if hasattr(self, "search") and self.search:
+                self.notebook.set_current_page(2)
+                self.search.focus_search_entry()
+                return True
+
         if keyval not in (Gdk.KEY_F5, Gdk.KEY_F6):
             return False
 
