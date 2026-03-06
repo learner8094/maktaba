@@ -1,12 +1,14 @@
 # views/search_view.py
 import os
 import re
+import threading
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Pango, Gdk
+from gi.repository import Gtk, Pango, Gdk, GLib
 
 from book import Book
 from config import BOOKS_DIR, load_config, save_config
+from services.indexing import run_recollindex
 from services.search import recoll_search, SearchHit
 
 class SearchView(Gtk.Box):
@@ -57,6 +59,11 @@ class SearchView(Gtk.Box):
         btn_search.add_css_class("suggested-action")
         btn_search.connect("clicked", self.perform_search)
         bar.append(btn_search)
+
+        self.btn_reindex = Gtk.Button(label="فهرسة Recoll")
+        self.btn_reindex.set_tooltip_text("فهرسة الكتب الجديدة عبر recollindex")
+        self.btn_reindex.connect("clicked", self.on_reindex_clicked)
+        bar.append(self.btn_reindex)
 
         btn_copy = Gtk.Button.new_from_icon_name("edit-copy-symbolic")
         btn_copy.set_tooltip_text("نسخ المقتطف المحدد")
@@ -237,6 +244,24 @@ class SearchView(Gtk.Box):
         snippet = model.get_value(it, 3) or ""
         clipboard = Gdk.Display.get_default().get_clipboard()
         clipboard.set(snippet)
+
+    def on_reindex_clicked(self, _btn):
+        self.btn_reindex.set_sensitive(False)
+        self.lbl_status.set_label("جاري فهرسة الكتب عبر Recoll...")
+
+        def worker():
+            ok, err = run_recollindex()
+            if ok:
+                GLib.idle_add(self._finish_reindex, "اكتملت فهرسة Recoll بنجاح.")
+                return
+            GLib.idle_add(self._finish_reindex, f"فشلت فهرسة Recoll: {err}")
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _finish_reindex(self, message: str):
+        self.btn_reindex.set_sensitive(True)
+        self.lbl_status.set_label(message)
+        return False
 
     def on_row_activated(self, tree, path, col):
         model = tree.get_model()
