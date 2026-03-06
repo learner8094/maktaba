@@ -6,7 +6,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Pango, Gdk
 
 from book import Book
-from config import load_config, save_config
+from config import BOOKS_DIR, load_config, save_config
 from services.search import recoll_search, SearchHit
 
 class SearchView(Gtk.Box):
@@ -48,6 +48,10 @@ class SearchView(Gtk.Box):
         self.scope_entry.set_placeholder_text("اسم القسم أو الكتاب")
         self.scope_entry.set_visible(False)
         bar.append(self.scope_entry)
+
+        self.section_combo = Gtk.ComboBoxText()
+        self.section_combo.set_visible(False)
+        bar.append(self.section_combo)
 
         btn_search = Gtk.Button(label="بحث")
         btn_search.add_css_class("suggested-action")
@@ -127,10 +131,32 @@ class SearchView(Gtk.Box):
         self.entry.set_text(last_q)
         self.scope_combo.set_active({"كل الكتب":0,"قسم معين":1,"كتاب واحد":2}.get(last_scope, 0))
         self.scope_entry.set_text(last_scope_val)
+        self._populate_sections()
+        if last_scope == "قسم معين" and last_scope_val:
+            self.section_combo.set_active_id(last_scope_val)
         self.on_scope_changed(self.scope_combo)
 
+    def _populate_sections(self):
+        self.section_combo.remove_all()
+        sections = []
+        try:
+            with os.scandir(BOOKS_DIR) as it:
+                for entry in it:
+                    if entry.is_dir():
+                        sections.append(entry.name)
+        except Exception:
+            sections = []
+
+        for section in sorted(sections):
+            self.section_combo.append(section, section)
+
+        if sections:
+            self.section_combo.set_active(0)
+
     def on_scope_changed(self, combo):
-        self.scope_entry.set_visible(combo.get_active_text() != "كل الكتب")
+        scope = combo.get_active_text()
+        self.scope_entry.set_visible(scope == "كتاب واحد")
+        self.section_combo.set_visible(scope == "قسم معين")
 
     def render_number(self, col, cell, model, iter_, data):
         path = model.get_path(iter_)
@@ -140,7 +166,12 @@ class SearchView(Gtk.Box):
         self.cfg.setdefault("search", {})
         self.cfg["search"]["last_query"] = self.entry.get_text().strip()
         self.cfg["search"]["last_scope"] = self.scope_combo.get_active_text()
-        self.cfg["search"]["last_scope_value"] = self.scope_entry.get_text().strip()
+        scope = self.scope_combo.get_active_text()
+        if scope == "قسم معين":
+            scope_value = self.section_combo.get_active_id() or ""
+        else:
+            scope_value = self.scope_entry.get_text().strip()
+        self.cfg["search"]["last_scope_value"] = scope_value
         self.cfg["search"]["match_mode"] = self.match_combo.get_active_id() or "and"
         save_config(self.cfg)
 
@@ -152,7 +183,10 @@ class SearchView(Gtk.Box):
         self.lbl_status.set_label("جاري البحث...")
 
         scope = self.scope_combo.get_active_text()
-        scope_value = self.scope_entry.get_text().strip()
+        if scope == "قسم معين":
+            scope_value = self.section_combo.get_active_id() or ""
+        else:
+            scope_value = self.scope_entry.get_text().strip()
 
         match_mode = self.match_combo.get_active_id() or "and"
 
@@ -243,3 +277,6 @@ class SearchView(Gtk.Box):
         self.tree.set_cursor(path, None, False)
         self.tree.scroll_to_cell(path, None, False, 0.0, 0.0)
 
+    def focus_search_entry(self):
+        self.entry.grab_focus()
+        self.entry.select_region(0, -1)

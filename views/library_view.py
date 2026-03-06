@@ -7,6 +7,7 @@ import threading
 
 from services.library_scan import LibraryScanner
 from services.library_update import LibraryUpdater
+from services.indexing import run_recollindex
 
 
 class LibraryView(Gtk.Box):
@@ -30,6 +31,11 @@ class LibraryView(Gtk.Box):
         self.btn_update = Gtk.Button(label="تحديث الكتب")
         self.btn_update.connect("clicked", self.on_update_clicked)
         actions.append(self.btn_update)
+
+        self.btn_reindex = Gtk.Button(label="فهرسة Recoll")
+        self.btn_reindex.set_tooltip_text("فهرسة الكتب الجديدة عبر recollindex")
+        self.btn_reindex.connect("clicked", self.on_reindex_clicked)
+        actions.append(self.btn_reindex)
 
         self.group_mode = Gtk.DropDown.new_from_strings(["حسب القسم", "حسب المؤلف"])
         self.group_mode.set_tooltip_text("طريقة عرض عناوين الكتب")
@@ -132,6 +138,24 @@ class LibraryView(Gtk.Box):
             auth_iter = self.store.append(None, [auth_display, None])
             for info in books:
                 self.store.append(auth_iter, [info.title, info.dir_path])
+
+    def on_reindex_clicked(self, _btn):
+        self.btn_reindex.set_sensitive(False)
+        self._set_status("جاري فهرسة الكتب عبر Recoll...")
+
+        def worker():
+            ok, err = run_recollindex()
+            if ok:
+                GLib.idle_add(self._finish_reindex, "اكتملت فهرسة Recoll بنجاح.")
+                return
+            GLib.idle_add(self._finish_reindex, f"فشلت فهرسة Recoll: {err}")
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _finish_reindex(self, message: str):
+        self.btn_reindex.set_sensitive(True)
+        self._set_status(message)
+        return False
 
     def on_group_mode_changed(self, *_args):
         if not self._last_libs:
