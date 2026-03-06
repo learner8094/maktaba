@@ -31,15 +31,17 @@ def _build_dir_filter(scope: str, scope_value: str) -> str:
     return ""
 
 def _normalize_query(query: str, match_mode: str) -> str:
-    terms = [w for w in query.split() if w.strip()]
-    if not terms:
+    query = (query or "").strip()
+    if not query:
         return ""
 
-    if len(terms) == 1:
-        return terms[0]
+    # إن احتوى الاستعلام على مسافات نعتبره عبارة كاملة ونبحث عنها كما هي.
+    # recollq يدعم البحث العباري عبر وضع الاستعلام بين علامتي اقتباس.
+    if " " in query:
+        escaped = query.replace('"', r'\"')
+        return f'"{escaped}"'
 
-    op = "OR" if match_mode == "or" else "AND"
-    return f" {op} ".join(terms)
+    return query
 
 def recoll_search(
     query: str,
