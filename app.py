@@ -205,7 +205,7 @@ class MainApp(Gtk.Application):
         try:
             self.reader.load_book(book, part_idx, page_idx, highlight_words=words, line_to_scroll=line_idx)
             self.notebook.set_current_page(1)
-            self.reader.hide_sidebar_panel()
+            self.reader.show_sidebar_panel("toc")
             self.save_position(book, page_idx)
         except Exception as e:
             print(f"فشل في الفتح من البحث: {e}")

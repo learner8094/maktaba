@@ -2,6 +2,7 @@
 import os
 import re
 import threading
+from typing import List, Tuple
 import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Pango, Gdk, GLib
@@ -19,6 +20,7 @@ class SearchView(Gtk.Box):
 
         self.cfg = load_config()
         self.cfg.setdefault("search", {})
+        self._search_serial = 0
 
         # شريط البحث
         bar = Gtk.Box(spacing=8)
@@ -186,8 +188,16 @@ class SearchView(Gtk.Box):
         query = self.entry.get_text().strip()
         if not query:
             return
+
+        self._search_serial += 1
+        search_serial = self._search_serial
         self.store.clear()
         self.lbl_status.set_label("جاري البحث...")
+        self.entry.set_sensitive(False)
+        self.match_combo.set_sensitive(False)
+        self.scope_combo.set_sensitive(False)
+        self.scope_entry.set_sensitive(False)
+        self.section_combo.set_sensitive(False)
 
         scope = self.scope_combo.get_active_text()
         if scope == "قسم معين":
@@ -196,45 +206,73 @@ class SearchView(Gtk.Box):
             scope_value = self.scope_entry.get_text().strip()
 
         match_mode = self.match_combo.get_active_id() or "and"
-
-        hits = recoll_search(query, scope=scope, scope_value=scope_value, limit=200, match_mode=match_mode)
-        books_cache = {}
-        for h in hits:
-            book_dir = os.path.dirname(h.filepath)
-            part_title = "-"
-            page_idx_1based = 1
-            try:
-                if book_dir not in books_cache:
-                    books_cache[book_dir] = Book(book_dir)
-                book = books_cache[book_dir]
-                hit_path = os.path.normpath(os.path.realpath(h.filepath))
-                for part in book.parts:
-                    part_path = os.path.normpath(os.path.realpath(part.path))
-                    if part_path != hit_path:
-                        continue
-
-                    target_line = max(0, h.line_num_1based - 1)
-                    page_idx_1based = part.page_for_line(target_line) + 1
-
-                    # استخرج عنوان الفصل الأقرب قبل السطر المطابق
-                    nearest_section = None
-                    for sec_title, sec_line, _sec_level in part.sections:
-                        if sec_line <= target_line:
-                            nearest_section = sec_title
-                        else:
-                            break
-
-                    if nearest_section:
-                        part_title = nearest_section
-                    else:
-                        part_title = os.path.splitext(os.path.basename(part.path))[0]
-                    break
-            except Exception:
-                pass
-            self.store.append([h.filepath, h.line_num_1based, h.display, h.snippet, part_title, page_idx_1based])
-
-        self.lbl_status.set_label(f"النتائج: {len(hits)}")
         self._save_search_state()
+
+        def worker():
+            rows: List[Tuple[str, int, str, str, str, int]] = []
+            try:
+                hits = recoll_search(query, scope=scope, scope_value=scope_value, limit=200, match_mode=match_mode)
+                books_cache = {}
+                for h in hits:
+                    book_dir = os.path.dirname(h.filepath)
+                    part_title = "-"
+                    page_idx_1based = 1
+                    try:
+                        if book_dir not in books_cache:
+                            books_cache[book_dir] = Book(book_dir)
+                        book = books_cache[book_dir]
+                        hit_path = os.path.normpath(os.path.realpath(h.filepath))
+                        for part in book.parts:
+                            part_path = os.path.normpath(os.path.realpath(part.path))
+                            if part_path != hit_path:
+                                continue
+
+                            target_line = max(0, h.line_num_1based - 1)
+                            page_idx_1based = part.page_for_line(target_line) + 1
+
+                            # استخرج عنوان الفصل الأقرب قبل السطر المطابق
+                            nearest_section = None
+                            for sec_title, sec_line, _sec_level in part.sections:
+                                if sec_line <= target_line:
+                                    nearest_section = sec_title
+                                else:
+                                    break
+
+                            if nearest_section:
+                                part_title = nearest_section
+                            else:
+                                part_title = os.path.splitext(os.path.basename(part.path))[0]
+                            break
+                    except Exception:
+                        pass
+                    rows.append((h.filepath, h.line_num_1based, h.display, h.snippet, part_title, page_idx_1based))
+            except Exception as e:
+                GLib.idle_add(self._finish_search, search_serial, [], f"فشل البحث: {e}")
+                return
+
+            GLib.idle_add(self._finish_search, search_serial, rows, None)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _finish_search(self, search_serial: int, rows: List[Tuple[str, int, str, str, str, int]], error_msg: str | None):
+        if search_serial != self._search_serial:
+            return False
+
+        self.entry.set_sensitive(True)
+        self.match_combo.set_sensitive(True)
+        self.scope_combo.set_sensitive(True)
+        self.scope_entry.set_sensitive(True)
+        self.section_combo.set_sensitive(True)
+
+        if error_msg:
+            self.lbl_status.set_label(error_msg)
+            return False
+
+        for row in rows:
+            self.store.append(list(row))
+
+        self.lbl_status.set_label(f"النتائج: {len(rows)}")
+        return False
 
     def copy_selected_snippet(self, *args):
         sel = self.tree.get_selection()
