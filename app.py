@@ -142,7 +142,10 @@ class MainApp(Gtk.Application):
         win.present()
 
     def on_global_key_pressed(self, controller, keyval, keycode, state):
-        if keyval == Gdk.KEY_f and (state & Gdk.ModifierType.CONTROL_MASK):
+        ctrl_pressed = bool(state & Gdk.ModifierType.CONTROL_MASK)
+        find_shortcuts = {Gdk.KEY_f, Gdk.KEY_F, Gdk.KEY_Arabic_beh}
+
+        if ctrl_pressed and keyval in find_shortcuts:
             current_tab = self.notebook.get_current_page()
 
             if current_tab == 0 and hasattr(self, "quran") and self.quran:
