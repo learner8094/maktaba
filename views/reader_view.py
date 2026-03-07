@@ -517,7 +517,7 @@ class ReaderView(Gtk.Box):
         line_count = self.buffer.get_line_count()
         relative_line = max(0, min(relative_line, line_count - 1))
         
-        iter_at_line = self.buffer.get_iter_at_line(relative_line)
+        _ok, iter_at_line = self.buffer.get_iter_at_line(relative_line)
         self.buffer.place_cursor(iter_at_line)
         self.text.scroll_to_iter(iter_at_line, 0.0, True, 0.0, 0.0)
         
